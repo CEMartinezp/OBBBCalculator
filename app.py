@@ -19,8 +19,7 @@ st.write("DEBUG: Raw query params:", query_params)
 st.write("DEBUG: Paid state before check:", st.session_state.paid)
 st.write("DEBUG: Is 'paid' in params?", "paid" in query_params)
 
-if "paid" in query_params and query_params["paid"][0] == "true":
-    st.session_state.paid = True
+if st.session_state.paid:
     # Clean URL after setting state (hides ?paid=true)
     st.query_params.pop("paid", None)
     
