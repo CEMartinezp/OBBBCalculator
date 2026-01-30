@@ -15,10 +15,13 @@ if "paid" not in st.session_state:
 query_params = st.query_params
 if "paid" in query_params and query_params["paid"][0] == "true":
     st.session_state.paid = True
-
-# Optional: If paid, add the param back on reload/bookmark (for persistence)
-if st.session_state.paid and "paid" not in query_params:
-    st.query_params["paid"] = "true"
+    # Clean URL after setting state (hides ?paid=true)
+    st.query_params.pop("paid", None)
+    
+# Extra safety: if params exist but state not set → set and rerun immediately
+if "paid" in query_params and not st.session_state.paid:
+    st.session_state.paid = True
+    st.rerun()  # This forces a fresh run where state is now True
     
 # If not paid via state or param → show paywall
 if not st.session_state.paid:
