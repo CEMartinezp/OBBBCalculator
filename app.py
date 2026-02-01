@@ -23,7 +23,7 @@ if "subscribed" not in st.session_state:
 query_params = st.query_params
 
 # Verify on redirect (secure server-side check)
-session_id_value = query_params.get("session_id", None)
+session_id_value = query_params.get("session_id", [None])
 if session_id_value:
     try:
         st.write("DEBUG: session_id raw value (via .get):", session_id_value)
@@ -52,6 +52,7 @@ else:
     st.warning("No session_id found in URL.")
     st.write("DEBUG: session_id raw value (via .get):", session_id_value)
     st.write("DEBUG: length of raw value:", len(session_id_value) if session_id_value else 0)
+    st.stop()
 
 # Paywall if not subscribed
 if not st.session_state.subscribed:
