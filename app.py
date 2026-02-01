@@ -23,9 +23,12 @@ if "subscribed" not in st.session_state:
 query_params = st.query_params
 
 # Verify on redirect (secure server-side check)
-if "session_id" in query_params:
+session_id_value = query_params.get("session_id", [None])[0]
+if session_id_value:
     try:
-        session = stripe.checkout.Session.retrieve(query_params["session_id"][0])
+        st.write("DEBUG: session_id raw value (via .get):", session_id_value)
+        st.write("DEBUG: length of raw value:", len(session_id_value) if session_id_value else 0)
+        session = stripe.checkout.Session.retrieve(session_id_value)
         if session.subscription:
             sub = stripe.Subscription.retrieve(session.subscription)
             if sub.status == "active":
@@ -45,6 +48,9 @@ if "session_id" in query_params:
     except Exception as e:
         st.error(f"Verification error: {e}")
 
+else:
+    st.warning("No session_id found in URL.")
+
 # Paywall if not subscribed
 if not st.session_state.subscribed:
     st.title("🔒 OBBB 2025 Calculator – Monthly Access")
@@ -59,11 +65,6 @@ if not st.session_state.subscribed:
                 success_url = f"{app_url}?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url = app_url,
             )
-            query_params = st.query_params
-            st.write("DEBUG: Full query params:", dict(query_params))
-            if "session_id" in query_params:
-                st.write("DEBUG: session_id value:", query_params["session_id"][0])
-                st.write("DEBUG: Length of session_id:", len(query_params["session_id"][0]))
             st.link_button("Proceed to Payment", checkout_session.url, type="primary")
         except Exception as e:
             st.error(f"Error: {e}")
