@@ -1,30 +1,75 @@
 ﻿import streamlit as st
+import stripe
 from datetime import datetime
-from pandas import to_datetime
 from logic import calculate_ot_premium, apply_phaseout
 from pdf_utils import extract_amounts
 from pdf_export import generate_pdf
-from st_paywall import add_auth
+import extra_streamlit_components as stx
+from datetime import datetime, timedelta
 
-# -------------------------
-# PAYWALL GATE (HARD BLOCK)
-# -------------------------
-add_auth(
-    required=True,  # Stops the app if not subscribed
-    show_redirect_button=True,
-    button_color="#5744EC",  # Optional: customize color
-    use_sidebar=True,  # Optional: show in sidebar
-    subscription_button_text="Subscribe Monthly ($5/mo)"  # Optional: custom text
-)
+# ────────────────────────────────────────────────
+# SECURE MONTHLY PAYWALL + COOKIE PERSISTENCE
+# ────────────────────────────────────────────────
+stripe.api_key = st.secrets["stripe"]["secret_key"]
+app_url = st.secrets["stripe"]["app_url"]
 
-# If here → user is logged in AND subscribed → show the app
-# -------------------------
-# PAGE CONFIG
-# -------------------------
-st.set_page_config(
-    page_title="OBBB 2025 Calculator",
-    layout="centered"
-)
+cookie_manager = stx.CookieManager(key="obbb_cookie")
+paid_cookie = cookie_manager.get(cookie="obbb_paid")
+
+# Init state
+if "subscribed" not in st.session_state:
+    st.session_state.subscribed = paid_cookie == "true"
+
+query_params = st.query_params
+
+# Verify on redirect (secure server-side check)
+if "session_id" in query_params:
+    try:
+        session = stripe.checkout.Session.retrieve(query_params["session_id"][0])
+        if session.subscription:
+            sub = stripe.Subscription.retrieve(session.subscription)
+            if sub.status == "active":
+                st.session_state.subscribed = True
+                # Set persistent cookie (30 days)
+                cookie_manager.set(
+                    cookie="obbb_paid",
+                    value="true",
+                    expires_at=datetime.now() + timedelta(days=30)
+                )
+                st.query_params.clear()
+                st.rerun()
+            else:
+                st.warning("Subscription not active.")
+        else:
+            st.warning("No subscription created.")
+    except Exception as e:
+        st.error(f"Verification error: {e}")
+
+# Paywall if not subscribed
+if not st.session_state.subscribed:
+    st.title("🔒 OBBB 2025 Calculator – Monthly Access")
+    st.markdown("Subscribe for **$4.99 / month** to unlock:")
+    st.markdown("- Unlimited calculations\n- PDF reports\n- Latest 2025 rules")
+
+    if st.button("Subscribe Monthly"):
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                line_items=[{"price": st.secrets["stripe"]["monthly_price_id"], "quantity": 1}],
+                mode="subscription",
+                success_url = f"{app_url}?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url = app_url,
+            )
+            st.link_button("Proceed to Payment", checkout_session.url, type="primary")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+    st.stop()
+
+# ────────────────────────────────────────────────
+# ACCESS GRANTED – SHOW CALCULATOR
+# ────────────────────────────────────────────────
+st.success("Active subscription – welcome!")
+st.set_page_config(page_title="OBBB 2025 Calculator", layout="centered")
 
 # Textos in spanish and english
 texts = {
