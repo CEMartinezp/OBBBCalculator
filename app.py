@@ -4,45 +4,25 @@ from pandas import to_datetime
 from logic import calculate_ot_premium, apply_phaseout
 from pdf_utils import extract_amounts
 from pdf_export import generate_pdf
+from st_paywall import add_auth
 
 # -------------------------
 # PAYWALL GATE (HARD BLOCK)
 # -------------------------
-if "paid" not in st.session_state:
-    st.session_state.paid = False
+add_auth(
+    stripe_publishable_key=st.secrets["stripe"]["publishable_key"],
+    stripe_secret_key=st.secrets["stripe"]["secret_key"],
+    stripe_price_id=st.secrets["stripe"]["monthly_price_id"],        
+    google_client_id=st.secrets["google"]["client_id"],
+    google_client_secret=st.secrets["google"]["client_secret"],
+    recurring=True,
+    price=4.99,
+    currency="usd",
+    button_text="Subscribe Monthly",
+    description="Unlimited calculator access"
+)
 
-# Check URL query param on load/redirect
-query_params = st.query_params
-
-if st.session_state.paid:
-    # Clean URL after setting state (hides ?paid=true)
-    st.query_params.pop("paid", None)
-    
-# Extra safety: if params exist but state not set → set and rerun immediately
-if "paid" in query_params and not st.session_state.paid:
-    st.session_state.paid = True
-    st.rerun()  # This forces a fresh run where state is now True
-    
-# If not paid via state or param → show paywall
-if not st.session_state.paid:
-    st.title("🔒 OBBB 2025 Calculator")
-    st.write("""
-    This tool is available after a one-time payment.
-    
-    - Full calculator access
-    - PDF report download
-    - Updated for the One Big Beatiful Bill (OBBB) 2025 rules
-    """)
-
-    st.markdown("### 💳 One-time access: **$1.00**")
-
-    st.link_button(
-        "Unlock Access",
-        st.secrets["stripe"]["pay_link"]
-    )
-
-    st.stop()  # 🚨 NOTHING BELOW RUNS
-
+# If here → user is logged in AND subscribed → show the app
 # -------------------------
 # PAGE CONFIG
 # -------------------------
