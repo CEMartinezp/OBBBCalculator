@@ -48,11 +48,6 @@ if "session_id" in query_params:
     except Exception as e:
         st.error(f"Verification error: {e}")
 
-else:
-    st.warning("No session_id found in URL.")
-    st.write("DEBUG: session_id raw value (via .get):", session_id_value)
-    st.write("DEBUG: length of raw value:", len(session_id_value) if session_id_value else 0)
-
 # Paywall if not subscribed
 if not st.session_state.subscribed:
     st.title("🔒 OBBB 2025 Calculator – Monthly Access")
