@@ -37,7 +37,7 @@ if "session_id" in query_params:
                 cookie_manager.set(
                     cookie="obbb_paid",
                     val="true",
-                    expires_at=datetime.now() + timedelta(days=30)
+                    expires_at=datetime.now() + timedelta(days=30),
                     secure=True,              # HTTPS only
                     same_site="Lax"
                 )
