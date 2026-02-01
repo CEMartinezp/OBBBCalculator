@@ -59,6 +59,11 @@ if not st.session_state.subscribed:
                 success_url = f"{app_url}?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url = app_url,
             )
+            query_params = st.query_params
+            st.write("DEBUG: Full query params:", dict(query_params))
+            if "session_id" in query_params:
+                st.write("DEBUG: session_id value:", query_params["session_id"][0])
+                st.write("DEBUG: Length of session_id:", len(query_params["session_id"][0]))
             st.link_button("Proceed to Payment", checkout_session.url, type="primary")
         except Exception as e:
             st.error(f"Error: {e}")
