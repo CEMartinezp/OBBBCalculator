@@ -25,8 +25,8 @@ query_params = st.query_params
 st.write("DEBUG: Full query params:", dict(query_params))
 # Verify on redirect (secure server-side check)
 if "session_id" in query_params:
-    st.write("DEBUG: session_id value:", query_params["session_id"][0])
-    st.write("DEBUG: Length of session_id:", len(query_params["session_id"][0]))
+    st.write("DEBUG: session_id value:", query_params["session_id"])
+    st.write("DEBUG: Length of session_id:", len(query_params["session_id"]))
     try:
         session = stripe.checkout.Session.retrieve(query_params["session_id"])
         if session.subscription:
@@ -38,8 +38,11 @@ if "session_id" in query_params:
                     cookie="obbb_paid",
                     val="true",
                     expires_at=datetime.now() + timedelta(days=30)
+                    secure=True,              # HTTPS only
+                    same_site="Lax"
                 )
                 st.query_params.clear()
+                st.success("Subscription verified! Access granted.")
                 st.rerun()
             else:
                 st.warning("Subscription not active.")
