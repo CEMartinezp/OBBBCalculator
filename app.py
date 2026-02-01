@@ -35,8 +35,8 @@ if session_id_value:
                 st.session_state.subscribed = True
                 # Set persistent cookie (30 days)
                 cookie_manager.set(
-                    key="obbb_paid",
-                    value="true",
+                    cookie="obbb_paid",
+                    val="true",
                     expires_at=datetime.now() + timedelta(days=30)
                 )
                 st.query_params.clear()
