@@ -22,13 +22,13 @@ if "subscribed" not in st.session_state:
 
 query_params = st.query_params
 
+st.write("DEBUG: Full query params:", dict(query_params))
 # Verify on redirect (secure server-side check)
-session_id_value = query_params.get("session_id")
-if session_id_value:
+if "session_id" in query_params:
+    st.write("DEBUG: session_id value:", query_params["session_id"][0])
+    st.write("DEBUG: Length of session_id:", len(query_params["session_id"][0]))
     try:
-        st.write("DEBUG: session_id raw value (via .get):", session_id_value)
-        st.write("DEBUG: length of raw value:", len(session_id_value) if session_id_value else 0)
-        session = stripe.checkout.Session.retrieve(session_id_value)
+        session = stripe.checkout.Session.retrieve(query_params["session_id"])
         if session.subscription:
             sub = stripe.Subscription.retrieve(session.subscription)
             if sub.status == "active":
