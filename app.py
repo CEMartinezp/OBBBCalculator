@@ -16,13 +16,20 @@ app_url = st.secrets["stripe"]["app_url"]
 cookie_manager = stx.CookieManager(key="obbb_cookie")
 paid_cookie = cookie_manager.get(cookie="obbb_paid")
 
-# Init state
+# Debug cookie read
+st.write("DEBUG: Raw cookie read:", paid_cookie)
+st.write("DEBUG: Type of cookie:", type(paid_cookie))
+
+# Init or restore state
 if "subscribed" not in st.session_state:
-    st.session_state.subscribed = paid_cookie == "true"
+    st.session_state.subscribed = paid_cookie == "true" or paid_cookie is True
+
+# Force state from cookie on every run (extra safety)
+if paid_cookie == "true":
+    st.session_state.subscribed = True
 
 query_params = st.query_params
 
-st.write("DEBUG: Full query params:", dict(query_params))
 # Verify on redirect (secure server-side check)
 if "session_id" in query_params:
     st.write("DEBUG: session_id value:", query_params["session_id"])
