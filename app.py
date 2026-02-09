@@ -1,293 +1,167 @@
 ﻿import streamlit as st
-import stripe
 from datetime import datetime
-from logic import calculate_ot_premium, apply_phaseout
-from pdf_utils import extract_amounts
-from pdf_export import generate_pdf
-import extra_streamlit_components as stx
-from datetime import datetime, timedelta
+
+if "eligible_override" not in st.session_state:
+    st.session_state.eligible_override = False
+
+
+st.set_page_config(page_title="Calculadora QOC OBBB 2025", layout="centered")
 
 # ────────────────────────────────────────────────
-# SECURE MONTHLY PAYWALL + COOKIE PERSISTENCE
+# TEXTOS BILINGÜES (con instrucciones ampliadas)
 # ────────────────────────────────────────────────
-stripe.api_key = st.secrets["stripe"]["secret_key"]
-app_url = st.secrets["stripe"]["app_url"]
-
-cookie_manager = stx.CookieManager(key="obbb_cookie")
-paid_cookie = cookie_manager.get(cookie="obbb_paid")
-
-# Debug cookie read
-st.write("DEBUG: Raw cookie read:", paid_cookie)
-st.write("DEBUG: Type of cookie:", type(paid_cookie))
-
-# Init or restore state
-if "subscribed" not in st.session_state:
-    st.session_state.subscribed = paid_cookie == "true" or paid_cookie is True
-
-# Force state from cookie on every run (extra safety)
-if paid_cookie == "true":
-    st.session_state.subscribed = True
-
-query_params = st.query_params
-
-# Verify on redirect (secure server-side check)
-if "session_id" in query_params:
-    st.write("DEBUG: session_id value:", query_params["session_id"])
-    st.write("DEBUG: Length of session_id:", len(query_params["session_id"]))
-    try:
-        session = stripe.checkout.Session.retrieve(query_params["session_id"])
-        if session.subscription:
-            sub = stripe.Subscription.retrieve(session.subscription)
-            if sub.status == "active":
-                st.session_state.subscribed = True
-                # Set persistent cookie (30 days)
-                cookie_manager.set(
-                    cookie="obbb_paid",
-                    val="true",
-                    expires_at=datetime.now() + timedelta(days=30),
-                    secure=True,              # HTTPS only
-                    same_site="Lax"
-                )
-                st.query_params.clear()
-                st.success("Subscription verified! Access granted.")
-                st.rerun()
-            else:
-                st.warning("Subscription not active.")
-        else:
-            st.warning("No subscription created.")
-    except Exception as e:
-        st.error(f"Verification error: {e}")
-
-# Paywall if not subscribed
-if not st.session_state.subscribed:
-    st.title("🔒 OBBB 2025 Calculator – Monthly Access")
-    st.markdown("Subscribe for **$4.99 / month** to unlock:")
-    st.markdown("- Unlimited calculations\n- PDF reports\n- Latest 2025 rules")
-
-    if st.button("Subscribe Monthly"):
-        try:
-            checkout_session = stripe.checkout.Session.create(
-                line_items=[{"price": st.secrets["stripe"]["monthly_price_id"], "quantity": 1}],
-                mode="subscription",
-                success_url = f"{app_url}?session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url = app_url,
-            )
-            st.link_button("Proceed to Payment", checkout_session.url, type="primary")
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-    st.stop()
-
-# ────────────────────────────────────────────────
-# ACCESS GRANTED – SHOW CALCULATOR
-# ────────────────────────────────────────────────
-st.success("Active subscription – welcome!")
-st.set_page_config(page_title="OBBB 2025 Calculator", layout="centered")
-
-# Textos in spanish and english
 texts = {
     "es": {
-        "title": "Calculadora de Deducciones OBBB",
-        "desc": "Esta herramienta gratuita te ayuda a estimar deducciones por propinas y horas extras según la Ley OBBB 2025.\nIMPORTANTE: Esto NO es asesoría fiscal oficial. Consulta a un contador o al IRS.",
-        "info_upload": "Sube uno o varios PDFs (W-2, 1099, paystubs, talones de pago) para extraer y sumar datos automaticamente. Ideal para parejas casadas (suma de ambos). Maximo 5 archivos.",
-        "disclaimer_extract": "ATENCION: Siempre verifica y edita los datos extraidos automaticamente del PDF. La lectura puede tener errores (ej. numeros mal reconocidos).",
-        "filing_status_label": "Estado civil para impuestos",
-        "filing_options": ["Soltero / Cabeza de familia", "Casado declarando conjuntamente"],
-        "magi_label": "MAGI estimado ($)",
-        "magi_help": "MAGI significa 'Modified Adjusted Gross Income' (Ingreso Bruto Ajustado Modificado).\nEs el numero que usa el IRS para decidir si tus deducciones se reducen o eliminan.\nDonde encontrarlo o estimarlo:\n- En tu W-2: Casilla 1 (Wages, tips, other compensation) como base.\n- En paystubs: suma 'YTD Gross' o 'Total Earnings' del año.\n- Si no tienes la declaracion final: suma todos tus ingresos del año (salario, propinas, OT, intereses, etc.) menos deducciones basicas.\nUsa una estimacion anual realista.",
-        "tips_label": "Monto total de propinas calificadas ($)",
-        "tips_help": "Suma TODAS las propinas que recibiste y reportaste durante TODO el año.\nDonde encontrarlo:\n- W-2 Casilla 7 (Social security tips) o Casilla 8 (Allocated tips)\n- 1099 o registros diarios si trabajas por cuenta propia\nSolo cuenta propinas que califican (de ocupaciones habituales con propinas: meseros, bartenders, etc.).",
-        "ot_label": "Pago total recibido por horas extras ($)",
-        "ot_help": "Suma TODO el dinero que te pagaron por concepto de horas extras durante TODO el año.\nDonde encontrarlo:\n- En cada paystub busca 'Over-Time', 'Overtime', 'OT Pay' o 'Premium OT'\n- Suma TODOS los montos de overtime de todos tus talones del año\nImportante: incluye tanto la base regular como la prima extra (ej. en tiempo y medio incluye los $10 regulares + $5 de prima).",
+        "title": "Calculadora QOC – Línea 14a Schedule 1 (OBBB 2025)",
+        "desc": "Calcula el monto de Qualified Overtime Compensation (QOC) reportable en la Línea 14a del Schedule 1 (Form 1040).\nSolo califica overtime bajo FLSA Section 7 (non-exempt, >40 h/semana, principalmente 1.5x).",
+        "flsa_title": "0. Elegibilidad FLSA Section 7 (obligatorio)",
+        "non_exempt_label": "¿Eres empleado non-exempt (no exento de overtime)?",
+        "over_40_label": "¿Tu overtime se paga por trabajar más de 40 horas por semana?",
+        "ot_1_5x_label": "¿El overtime que recibes es principalmente a 1.5x (time-and-a-half)?",
+        "unlock_message": "Responde **Sí** a las tres preguntas anteriores para desbloquear los campos.\nSi estás seguro de que calificas aunque alguna respuesta no sea Sí, usa el botón de abajo.",
+        "unlocked_message": "Elegibilidad FLSA confirmada.",
+        "override_button": "Confirmo que califico y quiero continuar",
+        "income_title": "1. Información de ingresos y nómina",
+        "ot_label": "Monto total de Overtime ($)",
+        "ot_help": """**Qué coloco aquí**: Suma de TODO el dinero recibido por overtime durante todo el año (incluye la parte regular + la prima extra).\n
+**Ejemplo**: Si trabajaste 10 horas OT a 1.5x y tu rate es $20/h → pago OT = $300 (10×$20 + 10×$10 prima) → ingresa 300.\n
+**Cómo consigo esta información**:\n• Busca en cada pay stub: Earnings → "Overtime", "OT Pay", "Premium OT"\n• Suma el monto YTD de overtime de todos los talones del año\n• Si solo tienes un resumen anual: usa el total YTD directamente.\n
+**Cómo verifico**:\n• Si tu pay stub solo muestra OT total combinado → QOC ≈ OT / 3 (para 1.5x)\n• Compara con horas × rate × 1.5 (debería aproximarse).""",
         "multiplier_label": "Multiplicador de horas extras",
-        "multiplier_help": "Es el factor por el que se multiplica tu tarifa normal en horas extras.\nEjemplos comunes:\n- 1.5 = tiempo y medio (lo más frecuente, paga 1.5 veces la tarifa regular)\n- 2.0 = doble tiempo (paga 2 veces la tarifa regular)\nBusca en tu paystub 'Over-Time Rate' o 'OT Rate', o compara tu pago regular vs. pago por hora extra (ej. si regular es /$20 y OT es /$30, es 1.5). No confundas con el pago total de OT (incluye base + prima).",
-        "upload_label": "1️⃣ Sube tus documentos de Impuestos",
-        "upload_instructions": "Ejemplo PDF(s) (W-2, 1099, paystub) - max 5 archivos",
-        "calc_button": "Calcular deducciones estimadas",
-        "results_title": "📊 Resultados",
-        "tips_ded": "Deducción por propinas",
-        "ot_ded": "Deducción por prima de horas extras",
-        "total_ded": "💰 Total Deducción Aproximada: $",
-        "summary": "Resumen",
-        "footer": "Hecho por Carlos E. Martinez",
-        "uploaded_file_info": "Valores extraidos (revise con cuidado):",
-        "uploaded_file_info_field": "Descripción",
-        "uploaded_file_info_value": "Valor",
-        "uploaded_file_results_confirmation": "Confirmo que estos valores son correctos",
-        "income_label": "2️⃣ Información de Ingresos",
+        "multiplier_options": ["1.5 (Tiempo y medio)", "2.0 (doble tiempo)"],
+        "multiplier_help": "Selecciona el multiplicador más común en tus pagos de overtime.\n• 1.5 = tiempo y medio (lo que exige FLSA)\n• 2.0 = doble tiempo (puede ser por ley estatal o acuerdo)\nSolo estos dos valores están permitidos para cumplir con las reglas de QOC.",
+        "ot_is_total_label": "¿El monto de OT que ingresaste es total combinado o solo la prima?",
+        "ot_is_total_options": ["Total combinado (base + prima)", "Solo prima", "No sé"],
+        "ot_is_total_help": "Importante para calcular correctamente la parte deducible:\n• Total combinado → la calculadora divide entre 3 o 4 para obtener solo la prima\n• Solo prima → se usa directamente\n• No sé → se asume total combinado (más conservador)",
+        "dt_has_label": "¿Tu pay stub tiene línea separada de Double Time / DT?",
+        "dt_total_label": "Monto total Double Time ($)",
+        "dt_total_help": """**Qué coloco aquí**: El monto en dólares que aparece en la línea de Double Time (si está separada).\n
+**Cómo consigo esta información**: Pay stub → Earnings → "Double Time", "DT", "DT Pay" → mira el monto YTD y súmalo si es necesario.\n
+**Cómo verifico**: Si es monto total → QOC ≈ monto / 4\nCompara también con: horas DT × tu rate regular × 2.""",
+        "dt_hours_label": "Horas Double Time (anual)",
+        "dt_hours_help": """**Qué coloco aquí**: Cantidad total de horas pagadas a doble tarifa durante todo el año.\n
+**Cómo consigo esta información**: Pay stub → Earnings → "Double Time" o "DT" → columna de HORAS (no dólares) → suma YTD si es necesario.\n
+**Cómo verifico**: Multiplica tus horas DT por tu tarifa regular y por 2 → debe acercarse al monto que pagaron por DT.""",
+        "calc_button": "Calcular QOC para Línea 14a",
+        "results_title": "Resultados – Schedule 1-A Línea 14a",
+        "qoc_final": "QOC a reportar",
+        "method": "Método usado",
+        "y": "Sí",
+        "n": "No",
+        "idk": "No sé",
+        "footer": "Hecho por Carlos E. Martinez • {date}"
     },
     "en": {
-        "title": "OBBB Deductions Calculator",
-        "desc": "This free tool helps estimate deductions for qualified tips and overtime under the OBBB Act 2025.\nIMPORTANT: This is NOT official tax advice. Consult a tax professional or the IRS.",
-        "info_upload": "Upload one or multiple PDFs (W-2, 1099, paystubs, check stubs) to auto-extract and sum data. Great for married couples (combine both). Max 5 files.",
-        "disclaimer_extract": "WARNING: Always verify and edit auto-extracted data from PDF. Reading errors may occur (e.g., misread numbers).",
-        "filing_status_label": "Filing Status",
-        "filing_options": ["Single / Head of Household", "Married Filing Jointly"],
-        "magi_label": "Estimated MAGI ($)",
-        "magi_help": "MAGI stands for 'Modified Adjusted Gross Income'.\nIt's the number the IRS uses to determine if your deductions are reduced or eliminated.\nWhere to find or estimate it:\n- On your W-2: Box 1 (Wages, tips, other compensation) as base.\n- On paystubs: sum 'YTD Gross' or 'Total Earnings' for the year.\n- If no final tax return: add up all your income for the year (wages, tips, OT, interest, etc.) minus basic deductions.\nUse a realistic annual estimate.",
-        "tips_label": "Total Qualified Tips ($)",
-        "tips_help": "Sum ALL qualified tips you received and reported during the entire year.\nWhere to find it:\n- W-2 Box 7 (Social security tips) or Box 8 (Allocated tips)\n- 1099 or daily tip logs if self-employed\nOnly include tips from customary tipped occupations (servers, bartenders, etc.).",
+        "title": "QOC Calculator – Schedule 1 Line 14a (OBBB 2025)",
+        "desc": "Calculate Qualified Overtime Compensation (QOC) for Schedule 1 (Form 1040) Line 14a.\nOnly FLSA Section 7 overtime qualifies.",
+        "flsa_title": "0. FLSA Section 7 Eligibility (required)",
+        "non_exempt_label": "Are you non-exempt (eligible for overtime)?",
+        "over_40_label": "Is overtime paid for hours over 40 per week?",
+        "ot_1_5x_label": "Is overtime primarily at 1.5x (time-and-a-half)?",
+        "warning_not_qualified": "⚠️ WARNING: To qualify for the OBBB deduction, you must answer **Yes** to all three eligibility questions above.",
+        "unlock_message": "Answer **Yes** to all three FLSA eligibility questions to unlock the fields and calculate.",
+        "unlocked_message": "Confirmed FLSA eligibility .",
+        "income_title": "1. Income & Payroll Information",
         "ot_label": "Total Overtime Pay ($)",
-        "ot_help": "Sum ALL the money you were paid for overtime work during the entire year.\nWhere to find it:\n- On each paystub look for 'Over-Time', 'Overtime', 'OT Pay' or 'Premium OT'\n- Add up ALL overtime amounts from every paystub of the year\nImportant: includes both the regular base pay for those hours + the premium (extra half or double).",
+        "ot_help":  """**What do I put here**: Sum of ALL the money received overtime throughout the year (includes the regular part + the extra premium).\n **Example**: If you worked 10 OT hours at 1.5x and your rate is $20/h → OT payment = $300 (10×$20 + 10×$10 premium) → enter 300.\n **How do I get this information**:\n• Search each pay stub: Earnings → "Overtime", "OT Pay", "Premium OT"\n• Add the YTD amount of overtime of all stubs for the year\n• If you only have an annual summary: use the total YTD directly.\n **How do I check**:\n• If your pay stub only shows combined total OT → QOC ≈ OT /3 (for 1.5x)\n• Compare with hours × rate × 1.5 (should be approximated).""",
         "multiplier_label": "Overtime Multiplier",
-        "multiplier_help": "This is the factor by which your regular rate is multiplied for overtime hours.\nCommon examples:\n- 1.5 = time and a half (most common, pays 1.5 times regular rate)\n- 2.0 = double time (pays 2 times regular rate)\nWhere to find it:\n- On your paystub: look for 'Over-Time Rate' or 'OT Rate'\n- Or compare: if your regular rate is $20 and overtime rate is $30 → it's 1.5\nDo NOT confuse with total overtime pay (that already includes base + premium).",
-        "upload_label": "1️⃣ Upload Tax Documents",
-        "upload_instructions": "Example PDF(s) (W-2, 1099, paystub) - max 5 files",
-        "calc_button": "Calculate Estimated Deductions",
-        "results_title": "📊 Results",
-        "tips_ded": "Tips Deduction",
-        "ot_ded": "Overtime Premium Deduction",
-        "total_ded": "💰 Total Estimated Deduction: $",
-        "summary": "Summary",
-        "footer": "Made by Carlos E. Martinez",
-        "uploaded_file_info": "Extracted values (review carefully):",
-        "uploaded_file_info_field": "Field",
-        "uploaded_file_info_value": "Value",
-        "uploaded_file_results_confirmation": "I confirm these values are correct",
-        "income_label": "2️⃣ Income Information",
+        "multiplier_options": ["1.5 (time-and-a-half)", "2.0 (double time)"],
+        "ot_is_total_label": "Is OT amount total combined or premium only?",
+        "ot_is_total_options": ["Total combined (base + premium)", "Premium only", "Don't know"],
+        "dt_has_label": "Does your pay stub have separate Double Time / DT line?",
+        "dt_total_label": "Double Time Total Amount ($)",
+        "dt_total_help": """**What do I put here**: The dollar amount that appears on the Double Time line (if separate).\n **How do I get this information**: Pay stub → Earnings → "Double Time", "DT", "DT Pay" → look at the YTD amount and add it if necessary.\n **How do I verify**: If it is total amount → QOC ≈ amount / 4\nAlso compare with: DT hours × your regular rate × 2.""",
+        "dt_hours_label": "Double Time Hours (annual)",
+        "dt_hours_help": """**What do I put here**: Total number of hours paid at double rate throughout the year.\n **How do I get this information**: Pay stub → Earnings → "Double Time" or "DT" → HOURS column (not dollars) → add YTD if necessary.\n **How do I verify**: Multiply your DT hours by your regular rate and by 2 → should be close to the amount you paid per DT.""",
+        "calc_button": "Calculate QOC for Line 14a",
+        "results_title": "Results – Schedule 1-A Line 14a",
+        "qoc_final": "QOC to report",
+        "method": "Method used",
+        "validation": "Validation",
+        "y": "Yes",
+        "n": "No",
+        "idk": "Don't know",
+        "footer": "Made by Carlos E. Martinez • {date}"
     }
 }
 
-# Language selector
 language = st.selectbox("Idioma / Language", ["Español", "English"], index=0)
 lang = "es" if language == "Español" else "en"
-
-# Load text dictionary
 t = texts[lang]
 
 st.title(t["title"])
-
 st.info(t["desc"])
 
-# -------------------------
-# UPLOAD SECTION
-# -------------------------
-st.markdown("---")
-st.subheader(t["upload_label"])
+# ────────────────────────────────────────────────
+# Preguntas FLSA
+# ────────────────────────────────────────────────
+with st.expander(t["flsa_title"], expanded=True):
+    non_exempt = st.radio(t["non_exempt_label"], [t["y"], t["n"], t["idk"]], index=2, horizontal=True)
+    over_40    = st.radio(t["over_40_label"],    [t["y"], t["n"], t["idk"]], index=2, horizontal=True)
+    ot_1_5x    = st.radio(t["ot_1_5x_label"],    [t["y"], t["n"], t["idk"]], index=2, horizontal=True)
 
-uploaded_files = st.file_uploader(
-    t["upload_instructions"],
-    type="pdf",
-    accept_multiple_files=True
-)
-
-extracted_magi = extracted_tips = extracted_ot = 0.0
-confirmed = False
-
-if uploaded_files:
-    extracted_magi, extracted_tips, extracted_ot = extract_amounts(uploaded_files)
-
-    st.info(t["uploaded_file_info"])
-    st.table({
-        t["uploaded_file_info_field"]: [t["magi_label"], t["tips_label"], t["ot_label"]],
-        t["uploaded_file_info_value"]: [
-            f"{extracted_magi:,.0f}",
-            f"{extracted_tips:,.0f}",
-            f"{extracted_ot:,.0f}"
-        ]
-    })
-
-    confirmed = st.checkbox(t["uploaded_file_results_confirmation"])
-
-# -------------------------
-# INPUT SECTION
-# -------------------------
-st.markdown("---")
-st.subheader(t["income_label"])
-
-col1, col2 = st.columns(2)
-
-with col1:
-    magi = st.number_input(
-        t["magi_label"], 
-        min_value=0.0, 
-        value=extracted_magi if confirmed else 0.0, 
-        step=1000.0,
-        help=t["magi_help"]
+    auto_eligible = (
+        non_exempt == t["y"]
+        and over_40 == t["y"]
+        and ot_1_5x == t["y"]
     )
 
-with col2:
-    filing_status = st.selectbox(
-        t["filing_status_label"],
-        t["filing_options"]
-    )
+    eligible = auto_eligible or st.session_state.eligible_override
 
-tips_amount = st.number_input(
-    t["tips_label"],
-    min_value=0.0,
-    value=extracted_tips if confirmed else 0.0,
-    step=100.0,
-    help=t["tips_help"]
-)
 
-ot_total = st.number_input(
-    t["ot_label"],
-    min_value=0.0,
-    value=extracted_ot if confirmed else 0.0,
-    step=100.0,
-    help=t["ot_help"]
-)
-
-ot_multiplier = st.number_input(
-    t["multiplier_label"],
-    min_value=1.0,
-    value=1.5,
-    step=0.5, 
-    help=t["multiplier_help"]
-)
-
-# -------------------------
-# CALCULATION
-# -------------------------
-st.markdown("---")
-
-if st.button(t["calc_button"], type="primary"):
-    ot_premium = calculate_ot_premium(ot_total, ot_multiplier)
-
-    if filing_status == t["filing_options"][1]:
-        max_tips = 25000
-        max_ot = 25000
-        phase_start = 300000
+    if eligible:
+        st.success(t["unlocked_message"])
     else:
-        max_tips = 25000
-        max_ot = 12500
-        phase_start = 150000
+        st.warning(t["unlock_message"])
+        if st.button(t["override_button"], type="secondary"):
+            st.session_state.eligible_override = True
+            st.rerun()
 
-    tips_ded = min(
-        tips_amount,
-        apply_phaseout(magi, max_tips, phase_start)
-    )
 
-    ot_ded = min(
-        ot_premium,
-        apply_phaseout(magi, max_ot, phase_start)
-    )
+# ────────────────────────────────────────────────
+# Sección de ingresos – deshabilitada hasta que sea eligible
+# ────────────────────────────────────────────────
+if eligible:
+    with st.expander(t["income_title"], expanded=True):
+        ot_total = st.number_input(t["ot_label"], min_value=0.0, value=0.0, step=100.0, help=t["ot_help"])
+        
+        ot_multiplier_str = st.radio(t["multiplier_label"], t["multiplier_options"])
+        ot_multiplier = 1.5 if ot_multiplier_str == t["multiplier_options"][0] else 2.0
 
-    total = tips_ded + ot_ded
+        ot_is_total = st.radio(t["ot_is_total_label"], t["ot_is_total_options"], help=t["ot_is_total_help"])
 
-    st.subheader(t["results_title"])
-    st.success(f"{t['total_ded']} {total:,.0f}")
+        # ── Double Time condicional ──
+        has_dt = st.checkbox(t["dt_has_label"])
 
-    st.metric(t["tips_ded"], f"${tips_ded:,.0f}")
-    st.metric(t["ot_ded"], f"${ot_ded:,.0f}")
+        dt_total = dt_hours = 0.0
+        if has_dt:
+            col1, col2 = st.columns(2)
+            with col1:
+                dt_total = st.number_input(t["dt_total_label"], min_value=0.0, value=0.0, step=50.0, help=t["dt_total_help"])
+            with col2:
+                dt_hours = st.number_input(t["dt_hours_label"], min_value=0.0, value=0.0, step=1.0, help=t["dt_hours_help"])
 
-    pdf_bytes = generate_pdf(
-    total,
-    tips_ded,
-    ot_ded
-)
+    # ────────────────────────────────────────────────
+    # Botón calcular
+    # ────────────────────────────────────────────────
+    if st.button(t["calc_button"], type="primary", use_container_width=True):
+        if ot_is_total == t["ot_is_total_options"][0]:
+            ot_premium = ot_total / (3 if ot_multiplier == 1.5 else 4)
+            method = f"/{3 if ot_multiplier == 1.5 else 4} ({ot_multiplier}x)"
+        else:
+            ot_premium = ot_total
+            method = "Prima directa"
 
-    st.download_button(
-        label="📄 Download PDF report",
-        data=pdf_bytes,
-        file_name="obbb_deduction_report.pdf",
-        mime="application/pdf"
-)
-# -------------------------
-# FOOTER
-# -------------------------
+        dt_premium = (dt_total / 4) if dt_total > 0 else (dt_hours * 1.0 if dt_hours > 0 else 0)
+        if dt_premium > 0:
+            method += " + /4 DT"
+
+        qoc_raw = ot_premium + dt_premium
+
+        st.subheader(t["results_title"])
+        st.success(f"**{t['qoc_final']}: ${qoc_raw:,.0f}**")
+        st.metric(t["method"], method)
+
+# Footer
 st.markdown("---")
-
-# Update version tracker
-update_version_date = datetime.now().strftime('%Y-%m-%d')
-st.caption(f"{t['footer']} • {update_version_date}")
+st.caption(t["footer"].format(date=datetime.now().strftime("%Y-%m-%d")))
