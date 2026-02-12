@@ -4,13 +4,13 @@ from typing import Literal
 def calculate_ot_premium(
     ot_amount: float,
     multiplier: float,
-    amount_type: Literal["total", "premium", "unknown"] = "total"
+    amount_type: Literal["total", "base", "unknown"] = "total"
 ) -> float:
     """
-    Calcula la porción de prima (premium) del pago por overtime que es deducible como QOC.
+    Calcula la porción de base del pago por overtime que es deducible como QOC.
 
     Parámetros:
-    - ot_amount: Monto total o prima ingresado por el usuario (dólares).
+    - ot_amount: Monto total del overtime ingresado por el usuario (dólares).
     - multiplier: Factor de pago (debe ser 1.5 o 2.0).
     - amount_type:
         "total"    → monto ingresado incluye base regular + prima
@@ -18,8 +18,8 @@ def calculate_ot_premium(
         "unknown"  → se asume "total" (enfoque conservador)
 
     Retorna:
-    - La porción de prima deducible (redondeada hacia abajo al dólar entero más cercano)
-    - 0.0 si no hay prima o los valores son inválidos
+    - La porción de base deducible
+    - 0.0 si no hay base o los valores son inválidos
 
     Ejemplos:
     - 300 @ 1.5 "total"   → 100.0 (porque prima = 300 × 0.5 / 1.5 = 100)
@@ -37,15 +37,14 @@ def calculate_ot_premium(
         # Podrías raise ValueError, pero retornamos 0 para no romper la UI
         return 0.0
 
-    if amount_type == "premium":
-        premium = ot_amount
+    if amount_type == "base":
+        premium = float(ot_amount)
     elif amount_type in ("total", "unknown"):
-        premium = ot_amount * (multiplier - 1) / multiplier
+        premium = float(ot_amount * (multiplier - 1) / multiplier)
     else:
-        raise ValueError(f"Tipo de monto inválido: {amount_type!r}. Usa 'total', 'premium' o 'unknown'.")
+        raise ValueError(f"Tipo de monto inválido: {amount_type!r}. Usa 'total', 'base' o 'unknown'.")
 
-    # Redondeo conservador (floor) para seguridad fiscal
-    return max(0.0, math.floor(premium))
+    return premium
 
 
 def apply_phaseout(
