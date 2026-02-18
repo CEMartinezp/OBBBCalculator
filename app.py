@@ -33,7 +33,7 @@ texts = {
         "title": "Calculadora de Deducción por Horas Extras (Ley OBBB 2025)",
         "desc": "Estima cuánto dinero extra de tus horas extras puedes quitar de tus impuestos federales en 2025 (hasta \\$12,500 o \\$25,000 según tu situación).",
         "flsa_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
-        "non_exempt_label": "¿Tu trabajo es de tipo 'no exento' de horas extras? (non-exempt)",
+        "married_separated_label": "¿Eres casado presentando declaración por separado?",
         "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
         "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a tiempo y medio (1.5x tu tarifa normal)?",
         "unlock_message": "Según tus respuestas, es posible que no califiques automáticamente. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
@@ -44,7 +44,7 @@ texts = {
         "reiniciar_button": "🔄 Reiniciar respuestas de elegibilidad",
         "income_title": "Paso 2: Ingresa tus datos de ingresos y horas extras",
         "magi_label": "Tu ingreso total aproximado del año (incluye horas extras, bonos, etc.) (\\$)",
-        "filing_label": "Tu situación al presentar impuestos",
+        "filing_label": "Estado civil al presentar impuestos",
         "filing_options": ["Soltero o Cabeza de Familia", "Casado presentando declaración conjunta"],
         "calc_button": "Calcular mi deducción estimada",
         "results_title": "Tus resultados estimados",
@@ -57,20 +57,27 @@ texts = {
         - Tu tarifa normal: **\\$25 por hora**  
         - Trabajas **10 horas extras** a 1.5x → te pagan **\\$375 total** (\\$250 de base + **\\$125 de dinero extra**)  
         - **Opción A**: Escribe **\\$375** y elige "Todo junto"  
-        - **Opción B**: Escribe tarifa **\\$25** y 10 horas a 1.5x
+        - **Opción B**: Escribe tarifa **\\$25**f¿Tu trabajo es de tipo 'no exento' de horas extras? (non-exempt) y 10 horas a 1.5x
         """,
-        "step3_title": "Paso 3: Tus datos de horas extras",
-        "step3_info": "**Llena al menos una opción**. Si llenas las dos, usaremos la Opción B.",
-
+        "step3_title": "Paso 3: Elige cómo ingresar tus datos de horas extras",
+        "step3_info": "**Puedes usar una de estas dos formas** (o ambas si quieres comparar resultados):\n"
+                      "- **Opción A – Más rápida** (por monto total recibido):\n"  
+                      "  Úsala si solo tienes el importe total que te pagaron por horas extras (en tus recibos o W-2).\n"
+                      "  Es más simple, pero menos precisa si hubo pagos a doble tiempo o tarifas diferentes.\n"
+                      "\n"
+                      "- **Opción B – Más precisa** (por horas trabajadas):\n"
+                      "  Úsala si tienes registro de las horas extras trabajadas y tu tarifa horaria normal.\n"  
+                      "  Es la forma más exacta, especialmente si tuviste horas a 1.5x y a 2.0x.",
+                      
         # Opción A
         "option_a_title": "**Opción A** (por monto total pagado)",
-        "ot_total_paid_label": "Dinero TOTAL que te pagaron por horas extras este año (\\$)",
+        "ot_total_paid_label": "Monto TOTAL que te pagaron por horas extras este año (\\$)",
         "ot_total_paid_help": "Revisa tus recibos de pago o W-2. Suma **todo** lo recibido por horas extras.",
         "ot_multiplier_label": "La mayoría de tus horas extras se pagan a...",
-        "ot_multiplier_options": ["1.5 veces (tiempo y medio)", "2.0x (doble tiempo)"],
+        "ot_multiplier_options": ["1.5x (tiempo y medio)", "2.0x (doble tiempo)"],
         "amount_included_label": "El monto que escribiste por horas extras, ¿incluye...?",
         "amount_included_options": [
-            "Todo lo que recibí (parte normal + el dinero extra adicional)",
+            "Todo lo que recibí (base + hora extra)",
             "Solo el dinero extra adicional (el pago por ser horas extras)"
         ],
         "amount_included_help": "Especifica si descontaste el pago base en el monto que colocaste.",
@@ -79,9 +86,9 @@ texts = {
         "option_b_title": "**Opción B** (por horas trabajadas)",
         "regular_rate_label": "Tu tarifa horaria normal (\\$ por hora)",
         "regular_rate_help": "¿Cuánto te pagan normalmente por una hora, sin extras?",
-        "ot_hours_1_5_label": "Horas totales en el año pagadas a tiempo y medio (1.5x)",
+        "ot_hours_1_5_label": "Horas totales en el año pagadas a tiempo y medio (1.5x) (numero de horas)",
         "ot_hours_1_5_help": "Suma de **todas** las horas extras que te pagaron a 1.5 veces durante el año.",
-        "dt_hours_2_0_label": "Horas totales en el año pagadas a doble tiempo (2.0x)",
+        "dt_hours_2_0_label": "Horas totales en el año pagadas a doble tiempo (2.0x) (numero de horas)",
         "dt_hours_2_0_help": "Horas pagadas al doble (ej: fines de semana o turnos especiales).",
 
         # Mensajes de ayuda FLSA
@@ -115,8 +122,8 @@ texts = {
         "results_tab_title": "Resultados y deducción",
         "deduction_real_label": "Deducción real que puedes usar",
         "deduction_real_delta": "Este es el monto final a restar de tus impuestos",
-        "deduction_real_success": "Esta es la cantidad que realmente puedes deducir en tu declaración. 🎉",
-        "deduction_real_no_limit": "**Puedes deducir ${}** por el dinero adicional que ganaste en horas extras. (No hay límite aplicado en tu caso)",
+        "deduction_real_success": "Esta es la cantidad que puedes usar para linea 14 del schedule 1a. 💰",
+        "deduction_real_no_limit": "**Puedes deducir ${}** por el dinero adicional que ganaste en horas extras.",
         "deduction_real_with_limit": "**Puedes deducir ${}** por horas extras (limitado por tu ingreso total).",
         "limit_info": "Tu pago adicional por overtime fue de ${}, pero según tu ingreso total el máximo que puedes deducir es ${}. Por eso se reduce a esta cantidad.",
         "breakdown_subtitle": "Desglose detallado",
@@ -175,7 +182,7 @@ eligible = st.session_state.eligible_override
 
 with st.expander(t["flsa_title"], expanded=not eligible):
     non_exempt = st.radio(
-        t["non_exempt_label"],
+        t["married_separated_label"],
         t["answer_options"],
         index=2,
         horizontal=True,
@@ -206,8 +213,6 @@ with st.expander(t["flsa_title"], expanded=not eligible):
     eligible = auto_eligible or st.session_state.eligible_override
 
     if eligible:
-        
-        
         if st.session_state.eligible_override:
             st.info(t["eligible_blocked_info"])
         else:
@@ -237,15 +242,14 @@ if eligible:
         step=1000.0
     )
 
+    # Ejemplo
     st.markdown(f"### {t['step3_title']}")
     st.info(t["step3_info"])
     with st.expander(t["example_title"], expanded=False):
         st.markdown(t["example_text"])
-
-    col_left, col_right = st.columns(2)
-
-    with col_left:
-        st.subheader(t["option_a_title"])
+        
+    # Expanders para cada opción
+    with st.expander(t["option_a_title"], expanded=False):
         ot_total_paid = st.number_input(
             t["ot_total_paid_label"],
             min_value=0.0,
@@ -267,8 +271,7 @@ if eligible:
             help=t["amount_included_help"]
         )
 
-    with col_right:
-        st.subheader(t["option_b_title"])
+    with st.expander(t["option_b_title"], expanded=False):
         regular_rate = st.number_input(
             t["regular_rate_label"],
             min_value=0.0,
@@ -290,6 +293,55 @@ if eligible:
             step=5.0,
             help=t["dt_hours_2_0_help"]
         )
+
+            # col_left, col_right = st.columns(2)
+
+            # with col_left:
+            #     st.subheader(t["option_a_title"])
+            #     ot_total_paid = st.number_input(
+            #         t["ot_total_paid_label"],
+            #         min_value=0.0,
+            #         value=0.0,
+            #         step=100.0,
+            #         help=t["ot_total_paid_help"]
+            #     )
+            #     ot_multiplier_str = st.radio(
+            #         t["ot_multiplier_label"],
+            #         t["ot_multiplier_options"],
+            #         horizontal=True,
+            #         key="mult_total"
+            #     )
+            #     amount_included = st.radio(
+            #         t["amount_included_label"],
+            #         t["amount_included_options"],
+            #         horizontal=True,
+            #         key="type_total",
+            #         help=t["amount_included_help"]
+            #     )
+
+            # with col_right:
+            #     st.subheader(t["option_b_title"])
+            #     regular_rate = st.number_input(
+            #         t["regular_rate_label"],
+            #         min_value=0.0,
+            #         value=0.0,
+            #         step=0.5,
+            #         help=t["regular_rate_help"]
+            #     )
+            #     ot_hours_1_5 = st.number_input(
+            #         t["ot_hours_1_5_label"],
+            #         min_value=0.0,
+            #         value=0.0,
+            #         step=5.0,
+            #         help=t["ot_hours_1_5_help"]
+            #     )
+            #     dt_hours_2_0 = st.number_input(
+            #         t["dt_hours_2_0_label"],
+            #         min_value=0.0,
+            #         value=0.0,
+            #         step=5.0,
+            #         help=t["dt_hours_2_0_help"]
+            #     )
 
     if st.button(t["calc_button"], type="primary", width='stretch'):
         use_hours = (regular_rate > 0 and (ot_hours_1_5 + dt_hours_2_0) > 0)
