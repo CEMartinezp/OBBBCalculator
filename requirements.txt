@@ -1,4 +1,4 @@
 streamlit
-pdfplumber
-reportlab
-st-paywall
+pandas
+fpdf
+PyPDF2
