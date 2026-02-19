@@ -221,7 +221,16 @@ texts = {
         "pdf_summary_title": "Resumen de Datos Ingresados",
         "pdf_results_title": "Resultados y Deducción Estimada",
         "pdf_evidence_title": "Documentos Adjuntos como Evidencia",
-        "pdf_no_docs": "No se subieron documentos de evidencia."
+        "pdf_no_docs": "No se subieron documentos de evidencia.",
+        
+        # Disclaimer
+        "disclaimer_label": "DESCARGO DE RESPONSABILIDAD",
+        "disclaimer": "**Disclaimer:** Esta herramienta es solo para estimaciones informativas. No sustituye asesoría profesional de impuestos.\n"  
+                      "Consulta a un contador certificado antes de usar cualquier deducción en tu declaración fiscal.",
+        "disclaimer_msg": "IMPORTANTE: Esta calculadora genera SOLO ESTIMACIONES APROXIMADAS de la deducción por horas extras según la Ley OBBB 2025."
+                          "NO es asesoría fiscal, legal ni contable. Los resultados pueden variar y NO garantizan aceptación por el IRS."
+                          "Siempre consulta a un contador o profesional de impuestos certificado antes de usar cualquier deducción en tu declaración."
+                          "Uso de esta herramienta es bajo tu propia responsabilidad."
     }
 }
 
@@ -244,7 +253,23 @@ def format_money(value):
 # TÍTULO Y DESCRIPCIÓN
 # ────────────────────────────────────────────────
 st.title(t["title"])
-st.info(t["desc"])
+st.markdown(
+    f"""
+    <div style="
+        font-size: 1.4rem;
+        line-height: 1.55;
+        padding: 18px 20px;
+        background-color: #e8f4fd;
+        border-left: 7px solid #1e88e5;
+        border-radius: 5px;
+        margin-bottom: 1.5rem;
+    ">
+    {t["desc"]}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+st.warning(t["disclaimer"])
 
 # ────────────────────────────────────────────────
 # ELEGIBILIDAD FLSA
@@ -528,7 +553,7 @@ if eligible:
                 }
                 st.session_state.show_results = True
                 st.rerun()
-
+        
 # ────────────────────────────────────────────────
 # MOSTRAR RESULTADOS (persiste siempre después de calcular)
 # ────────────────────────────────────────────────
@@ -615,17 +640,29 @@ if eligible and st.session_state.results:
                 # Crear PDF principal
                 pdf = FPDF()
                 pdf.add_page()
+                
+                # ── Página 1: SOLO el disclaimer ────────────────────────────────
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 15, t["disclaimer_label"], ln=True, align="C")
+                pdf.ln(8)
+                pdf.set_font("Arial", "B", 11)
+                pdf.multi_cell(0, 7, t["disclaimer_msg"], align="J")
+                # Forzamos nueva página para el contenido real
+                pdf.add_page() 
+                
+                # ── A partir de aquí va el contenido normal ──────────────────────
                 pdf.set_font("Arial", "B", 16)
                 pdf.cell(0, 10, t["pdf_title"], ln=True, align="C")
                 pdf.set_font("Arial", "", 12)
                 pdf.cell(0, 10, t["pdf_generated_by"], ln=True, align="C")
                 pdf.cell(0, 10, t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")), ln=True, align="C")
-                pdf.ln(10)
-
+                pdf.ln(8)
+                
+                # User name, document count, summary, etc.
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, t["pdf_user_name"].format(user_name), ln=True)
                 pdf.cell(0, 10, t["pdf_used_count"].format(num_docs), ln=True)
-                pdf.ln(10)
+                pdf.ln(8)
 
                 # Resumen
                 pdf.set_font("Arial", "B", 12)
@@ -653,7 +690,7 @@ if eligible and st.session_state.results:
                 for line in summary_lines:
                     pdf.multi_cell(0, 8, line)
 
-                pdf.ln(10)
+                pdf.ln(8)
 
                 # Resultados
                 pdf.set_font("Arial", "B", 12)
@@ -662,7 +699,7 @@ if eligible and st.session_state.results:
                 pdf.multi_cell(0, 8, f"{t['total_deduction_label']}: {format_money(data['total_deduction'])}")
                 pdf.multi_cell(0, 8, f"{t['qoc_gross_label']}: {format_money(data['qoc_gross'])}")
                 pdf.multi_cell(0, 8, f"{t['phaseout_limit_label']}: {format_money(data['deduction_limit'])}")
-                pdf.ln(10)
+                pdf.ln(8)
 
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, t["pdf_evidence_title"], ln=True)
