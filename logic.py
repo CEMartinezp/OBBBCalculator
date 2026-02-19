@@ -4,10 +4,10 @@ from typing import Literal
 def calculate_ot_premium(
     ot_amount: float,
     multiplier: float,
-    amount_type: Literal["total", "base", "unknown"] = "total"
+    amount_type: Literal["total", "premium", "unknown"] = "total"
 ) -> float:
     """
-    Calcula la porción de base del pago por overtime que es deducible como QOC.
+    Calcula la porción de premium del pago por overtime que es deducible como QOC.
 
     Parámetros:
     - ot_amount: Monto total del overtime ingresado por el usuario (dólares).
@@ -18,7 +18,7 @@ def calculate_ot_premium(
         "unknown"  → se asume "total" (enfoque conservador)
 
     Retorna:
-    - La porción de base deducible
+    - La porción de premium deducible
     - 0.0 si no hay base o los valores son inválidos
 
     Ejemplos:
@@ -37,12 +37,12 @@ def calculate_ot_premium(
         # Podrías raise ValueError, pero retornamos 0 para no romper la UI
         return 0.0
 
-    if amount_type == "base":
+    if amount_type == "premium":
         premium = float(ot_amount)
     elif amount_type in ("total", "unknown"):
         premium = float(ot_amount * (multiplier - 1) / multiplier)
     else:
-        raise ValueError(f"Tipo de monto inválido: {amount_type!r}. Usa 'total', 'base' o 'unknown'.")
+        raise ValueError(f"Tipo de monto inválido: {amount_type!r}. Usa 'total', 'premium' o 'unknown'.")
 
     return premium
 

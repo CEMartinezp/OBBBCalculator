@@ -25,18 +25,74 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+def pretty_money_input(
+    label: str,
+    value: float = 0.0,
+    step: float = 100.0,
+    decimals: int = 2,
+    key: str | None = None,
+    help: str | None = None,
+    lang: str = "es",          # <-- we pass the language here
+    currency: str = "$"
+) -> float:
+    """
+    number_input + language-aware pretty preview with correct separators
+    """
+    cols = st.columns([1.5, 3])  # or [7, 3], [5, 2], etc. — adjust to taste
+
+    with cols[0]:
+        num = st.number_input(
+            label,
+            min_value=0.0,
+            value=value,
+            step=step,
+            format=f"%.{decimals}f",
+            key=key,
+            help=help,
+        )
+
+    with cols[1]:
+        if num == 0:
+            st.metric(label=" ", value=f"{currency}0")
+            return num
+
+        # ────────────────────────────────────────────────
+        # Language-aware formatting
+        # ────────────────────────────────────────────────
+        if lang == "es":
+            # Spanish/LatAm style: dot = thousands, comma = decimal
+            # 1234567.89 → "1.234.567,89"
+            formatted = f"{num:,.{decimals}f}"          # first get US style
+            formatted = formatted.replace(",", "X")      # temp replace
+            formatted = formatted.replace(".", ",")      # dot → comma (decimal)
+            formatted = formatted.replace("X", ".")      # comma → dot (thousands)
+        else:
+            # Default / en-US: comma = thousands, dot = decimal
+            formatted = f"{num:,.{decimals}f}"
+
+        display_value = f"{currency}{formatted}"
+        
+        st.metric(
+            label=" ", 
+            value= display_value,
+        )
+
+    return num
+
 # ────────────────────────────────────────────────
 # TEXTOS COMPLETOS – DICCIONARIO 100% COMPLETO Y ACTUALIZADO
 # ────────────────────────────────────────────────
 texts = {
     "es": {
         "title": "Calculadora de Deducción por Horas Extras (Ley OBBB 2025)",
-        "desc": "Estima cuánto dinero extra de tus horas extras puedes quitar de tus impuestos federales en 2025 (hasta \\$12,500 o \\$25,000 según tu situación).",
+        "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta \\$12,500 para individual  o \\$25,000 Casado presentando declaración  conjunta).",
         "step1_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
         "married_separated_label": "¿Eres casado presentando declaración por separado?",
         "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
+        "ss_check_label": "¿Tienes un Social Security valido?",
+        "work_authorization_check_label": "¿Tienes un permiso de trabajo valido?",
         "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a medio tiempo (1.5x tu tarifa normal)?",
-        "unlock_message": "Según tus respuestas, es posible que no califiques automáticamente. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
+        "unlock_message": "Según tus respuestas, es posible que no califiques automáticamente para la deducción. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
         "override_button": "Sí califico y quiero continuar de todos modos",
         "override_success": "¡Genial! Has confirmado manualmente que calificas.",
         "eligible_blocked_info": "**Las respuestas de elegibilidad están bloqueadas.** Si necesitas cambiarlas, usa el botón de abajo.",
@@ -96,15 +152,22 @@ texts = {
         "flsa_married_separated_help": "Si estas casado pero estas presentando la declaración por separado.",
         "flsa_over_40_help": "¿Te pagan más cuando superas las 40 horas por semana? Eso es la regla principal.",
         "flsa_ot_1_5x_help": "¿Casi todo tu pago extra es 1.5 veces tu tarifa normal? (ej: \\$30 en vez de \\$20). Si es doble en algunos días, igual puede contar.",
+        "flsa_ss_check_help": "Si no tienes un Social Security valido no puedes calificar para la dedducion.",
+        "flsa_work_authorization_check_help": "¿Tienes autorización legal para trabajar en EE.UU. (ej: ciudadanía, green card, visa de trabajo, etc.)?",
 
         # Errores y métodos
         "error_no_data": "⚠️ Completa al menos una de las opciones del **Paso 3** para calcular.",
         "error_empty_option_a": "⚠️ Opción A está incompleta. Completa al menos una de las opciones para calcular",
         "error_empty_option_b": "⚠️ Opción b está incompleta. Completa al menos una de las opciones para calcular",
         "error_missing_total_income": "⚠️ Paso 2 está incompleto. Debes introducir tu ingreso total aproximado del año para continuar.",
+        "error_option_a_b": "Completaste ambas opciones, pero los resultados **no coinciden**.\n\n"
+                            "Opción A → Pago adicional estimado: \\{}\n\n"
+                            "Opción B → Pago adicional estimado: \\{}",
+        "warning_option_a_b": "Revisa y corrige los valores para continuar.",
         "method_hours": "Por horas trabajadas (Opción B)",
         "method_total_combined": "Por monto total (Opción A - todo junto)",
         "method_total_premium": "Por monto total (Opción A - solo dinero extra)",
+        "method_a_and_b": "Opción A y Opción B",
 
         # Resumen de datos
         "data_tab_title": "Resumen de tus datos",
@@ -122,6 +185,8 @@ texts = {
             "¿Le pagan horas extras por trabajar mas de 40h/semana?",
             "¿Principalmente 1.5x?",
             "¿Esta casado presentando declaracion por separado?",
+            "¿Tiene un Social Security válido?",
+            "¿Tienes un permiso de trabajo válido?"
         ],
 
         # Resultados
@@ -136,7 +201,7 @@ texts = {
         "qoc_gross_label": "Monto total ganado por horas extras",
         "phaseout_limit_label": "Límite máximo deducible permitido por tu ingreso total",
         "reduction_label": "Reducción aplicada",
-        "final_after_limit_label": "**Deducción final después de comparar tu deduccion con el maximo permitido**",
+        "final_after_limit_label": "**Deducción final después de comparar tu deducción con el maximo permitido**",
 
         # Descarga PDF
         "download_section_title": "Descargar Reporte en PDF",
@@ -149,7 +214,7 @@ texts = {
         "download_button": "Generar y Descargar Reporte PDF",
         "download_error_name": "Por favor, ingresa tu nombre para generar el reporte.",
         "pdf_title": "Reporte de Deducción por Horas Extras - Ley OBBB 2025",
-        "pdf_generated_by": "Generado por Calculadora Deducción Horas Extras",
+        "pdf_generated_by": "Generado por ZaiOT",
         "pdf_date": "Fecha de generación: {}",
         "pdf_user_name": "Nombre del contribuyente: {}",
         "pdf_used_count": "Número de documentos utilizados: {}",
@@ -211,10 +276,30 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         disabled=eligible,
         help=t["flsa_married_separated_help"]
     )
+    ss_check = st.radio(
+        t["ss_check_label"],
+        t["answer_options"],
+        index=2,
+        horizontal=True,
+        disabled=eligible,
+        help=t["flsa_ss_check_help"]
+    )
+    work_authorization_check = st.radio(
+        t["work_authorization_check_label"],
+        t["answer_options"],
+        index=2,
+        horizontal=True,
+        disabled=eligible,
+        help=t["flsa_work_authorization_check_help"]
+    )
 
-    auto_eligible = (civil_married_separated == t["answer_options"][1] and 
+    auto_eligible = (
+                     civil_married_separated == t["answer_options"][1] and 
                      over_40 == t["answer_options"][0] and 
-                     ot_1_5x == t["answer_options"][0])
+                     ot_1_5x == t["answer_options"][0] and
+                     ss_check == t["answer_options"][0] and
+                     work_authorization_check == t["answer_options"][0]
+                     )
 
     eligible = auto_eligible or st.session_state.eligible_override
 
@@ -241,11 +326,13 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
 if eligible:
     with st.expander(f"### {t['step2_title']}", expanded=True):
         filing_status = st.selectbox(t["filing_label"], t["filing_options"])
-        total_income = st.number_input(
+        total_income = pretty_money_input(
             t["magi_label"],
-            min_value=0.0,
             value=0.0,
-            step=1000.0
+            step=1000.0,
+            decimals=2,          
+            help=None,
+            lang=lang
         )
     with st.expander(f"### {t['step3_title']}", expanded=True):
         st.info(t["step3_info"])
@@ -254,69 +341,68 @@ if eligible:
         
         # Expanders para cada opción
         with st.expander(t["option_a_title"], expanded=False):
-            ot_1_5_total = st.number_input(
+            ot_1_5_total = pretty_money_input(
                 t["ot_total_1_5_paid_label"],
-                min_value=0.0,
                 value=0.0,
                 step=100.0,
-                help=t["ot_total_1_5_paid_help"]
+                decimals=2,
+                help=t["ot_total_1_5_paid_help"],
+                lang=lang
             )
-            ot_2_0_total = st.number_input(
+            ot_2_0_total = pretty_money_input(
                 t["ot_total_2_0_paid_label"],
-                min_value=0.0,
                 value=0.0,
                 step=100.0,
-                help=t["ot_total_2_0_paid_help"]   
+                decimals=2,
+                help=t["ot_total_2_0_paid_help"],
+                lang=lang
             )
             amount_included = st.radio(
                 t["amount_included_label"],
                 t["amount_included_options"],
                 horizontal=True,
                 key="type_total",
-                help=t["amount_included_help"]
+                help=t["amount_included_help"],
             )
             is_total_combined = "todo" in amount_included.lower()
 
         with st.expander(t["option_b_title"], expanded=False):
-            regular_rate = st.number_input(
+            regular_rate = pretty_money_input(
                 t["regular_rate_label"],
-                min_value=0.0,
                 value=0.0,
                 step=0.5,
+                decimals=2,
                 help=t["regular_rate_help"]
             )
-            ot_hours_1_5 = st.number_input(
+            ot_hours_1_5 = pretty_money_input(
                 t["ot_hours_1_5_label"],
-                min_value=0.0,
                 value=0.0,
                 step=5.0,
-                help=t["ot_hours_1_5_help"]
+                help=t["ot_hours_1_5_help"],
+                decimals=2,
+                lang=lang,
+                currency=" "
             )
-            dt_hours_2_0 = st.number_input(
+            dt_hours_2_0 = pretty_money_input(
                 t["dt_hours_2_0_label"],
-                min_value=0.0,
                 value=0.0,
                 step=5.0,
-                help=t["dt_hours_2_0_help"]
+                decimals=2,
+                help=t["dt_hours_2_0_help"],
+                lang=lang,
+                currency=" "
             )
-
+            
+    # ────────────────────────────────────────────────
+    # Boton de Calcular
+    # ────────────────────────────────────────────────
     if st.button(t["calc_button"], type="primary", width='stretch'):
-        # Resetear mensajes de error previos (opcional, pero mejora UX)
         if "calc_error" in st.session_state:
             del st.session_state.calc_error
-        
-        # Variables:
-            # total_income: salario anual (incluye horas extras, bonos, etc.)
-            # ot_total_paid: monto total pagado por horas extra
-            # multiplier: multiplicador principal (1.5 o 2)
-            # is_total_combined: bool indica si el ot_total_paid incluye base + hora extra
-            # regular_rate: pago regular por hora
-            # ot_hours_1_5: horas de overtime de 1.5
-            # dt_hours_2_0: horas de overtime de 2.0
-        
-        
-        # Validaciones detallada
-        # Step 2
+
+        # ────────────────────────────────────────────────
+        # Validaciones previas (ya las tienes, las mantengo iguales)
+        # ────────────────────────────────────────────────
         incomplete_step2 = total_income <= 0
         # Opción A
         a_has_1_5 = ot_1_5_total > 0
@@ -332,64 +418,116 @@ if eligible:
         # Detectar error específico (solo uno por vez)
         error_msg = None
         if incomplete_step2:
-            error_msg = t["error_missing_total_income"]
+            error_msg = t["error_missing_total_income"]         
         elif not a_complete and not b_complete:
             error_msg = t["error_no_data"]
         elif not a_partial and not b_complete and not a_complete:
             error_msg = t["error_empty_option_a"]
         elif b_partial and not a_complete and not b_complete:
             error_msg = t["error_empty_option_b"]
+        elif b_partial and a_complete:
+            error_msg = "Has intentado completar ambas opciones, pero aún falta completar la Opción B. Para continuar, por favor finaliza o elimina la información ingresada en la Opción B."
 
-        # Mostrar el error SOLO si existe en ESTE intento
         if error_msg:
             st.session_state.calc_error = error_msg
             st.error(error_msg)
         else:
-            # Opcion B
-            if b_complete:  # priorizamos B si está completa
-                method_used = t["method_hours"]                                       # Opcion B
-                ot_1_5_total = ot_hours_1_5 * regular_rate                            # ot 1.5 prima + base
-                ot_2_0_total = dt_hours_2_0 * regular_rate                            # ot 2.0 prima + base
-                ot_total_paid = ot_1_5_total + ot_2_0_total                           # ot total base + prima
-                ot_1_5_premium = calculate_ot_premium(ot_1_5_total, 1.5, "total")    # ot 1.5 prima
-                ot_2_0_premium = calculate_ot_premium(ot_2_0_total, 2.0, "total")    # ot 2.0 prima
-            # opcion A
-            else:
-                ot_total_paid = ot_1_5_total + ot_2_0_total
-                method_used = t["method_total_combined"] if is_total_combined else t["method_total_premium"]
+            # ────────────────────────────────────────────────
+            # Calcular siempre lo que se pueda
+            # ────────────────────────────────────────────────
+            method_used = None
+            qoc_gross = 0.0
+            ot_total_paid = 0.0
+            ot_1_5_premium = 0.0
+            ot_2_0_premium = 0.0
+
+            # Opción B (prioridad si está completa)
+            if b_complete:
+                ot_1_5_total_b = ot_hours_1_5 * regular_rate * 1.5
+                ot_2_0_total_b = dt_hours_2_0 * regular_rate * 2.0
+                ot_total_paid_b = ot_1_5_total_b + ot_2_0_total_b
+                ot_1_5_premium_b = calculate_ot_premium(ot_1_5_total_b, 1.5, "total")
+                ot_2_0_premium_b = calculate_ot_premium(ot_2_0_total_b, 2.0, "total")
+                qoc_gross_b = ot_1_5_premium_b + ot_2_0_premium_b
+
+            # Opción A
+            if a_complete:
+                ot_total_paid_a = ot_1_5_total + ot_2_0_total
                 amount_type = "total" if is_total_combined else "premium"
-                ot_1_5_premium = calculate_ot_premium(ot_1_5_total, 1.5, amount_type)
-                ot_2_0_premium = calculate_ot_premium(ot_2_0_total, 2, amount_type)
+                ot_1_5_premium_a = calculate_ot_premium(ot_1_5_total, 1.5, amount_type)
+                ot_2_0_premium_a = calculate_ot_premium(ot_2_0_total, 2.0, amount_type)
+                qoc_gross_a = ot_1_5_premium_a + ot_2_0_premium_a
 
-            qoc_gross = ot_1_5_premium + ot_2_0_premium
-            base_salary_est = total_income - qoc_gross
+            # ────────────────────────────────────────────────
+            # Decidir qué usar
+            # ────────────────────────────────────────────────
+            if b_complete and a_complete:
+                # Comparar con tolerancia razonable (ej: diferencia < $1 o < 0.1%)
+                diff_total = abs(ot_total_paid_b - ot_total_paid_a)
+                diff_premium = abs(qoc_gross_b - qoc_gross_a)
+                tolerance = 1.0  # o 0.001 * ot_total_paid_b si prefieres %
 
-            is_joint = filing_status == t["filing_options"][2]
-            max_deduction = 25000 if is_joint else 12500
-            phase_start = 300000 if is_joint else 150000
-            deduction_limit = max(0.0, apply_phaseout(total_income, max_deduction, phase_start))
-            total_deduction = min(qoc_gross, deduction_limit)
+                if diff_total <= tolerance and diff_premium <= tolerance:
+                    # Coinciden → preferimos Opción B (más precisa)
+                    method_used = t["method_hours"] + " (validado con Opción A)"
+                    qoc_gross = qoc_gross_b
+                    ot_total_paid = ot_total_paid_b
+                    ot_1_5_premium = ot_1_5_premium_b
+                    ot_2_0_premium = ot_2_0_premium_b
+                else:
+                    st.session_state.calc_error = error_msg
+                    st.error(t["error_option_a_b"].format(format_money(qoc_gross_a), format_money(qoc_gross_b))) 
+                    st.warning(t["warning_option_a_b"])                   
+                    st.stop()  # ← importante: no continuar si hay inconsistencia
 
-            # Guardar resultados
-            st.session_state.results = {
-                "filing_status": filing_status,
-                "total_income": total_income,
-                "base_salary_est": base_salary_est,
-                "ot_total_paid": ot_total_paid,
-                "ot_1_5_total": ot_1_5_total,      
-                "ot_2_0_total": ot_2_0_total,      
-                "ot_1_5_premium": ot_1_5_premium,
-                "ot_2_0_premium": ot_2_0_premium,
-                "method_used": method_used,
-                "civil_married_separated": civil_married_separated,
-                "over_40": over_40,
-                "ot_1_5x": ot_1_5x,
-                "qoc_gross": qoc_gross,
-                "deduction_limit": deduction_limit,
-                "total_deduction": total_deduction
-            }
-            st.session_state.show_results = True
-            st.rerun()  # Opcional: fuerza actualización inmediata
+            elif b_complete:
+                method_used = t["method_hours"]
+                qoc_gross = qoc_gross_b
+                ot_total_paid = ot_total_paid_b
+                ot_1_5_premium = ot_1_5_premium_b
+                ot_2_0_premium = ot_2_0_premium_b
+
+            elif a_complete:
+                method_used = t["method_total_combined"] if is_total_combined else t["method_total_premium"]
+                qoc_gross = qoc_gross_a
+                ot_total_paid = ot_total_paid_a
+                ot_1_5_premium = ot_1_5_premium_a
+                ot_2_0_premium = ot_2_0_premium_a
+
+            # ────────────────────────────────────────────────
+            # Continuar con el cálculo final
+            # ────────────────────────────────────────────────
+            if not error_msg:  # solo si no hubo inconsistencia
+                base_salary_est = total_income - qoc_gross
+
+                is_joint = filing_status == t["filing_options"][2]
+                max_deduction = 25000 if is_joint else 12500
+                phase_start = 300000 if is_joint else 150000
+                deduction_limit = max(0.0, apply_phaseout(total_income, max_deduction, phase_start))
+                total_deduction = min(qoc_gross, deduction_limit)
+
+                # Guardar resultados
+                st.session_state.results = {
+                    "filing_status": filing_status,
+                    "total_income": total_income,
+                    "base_salary_est": base_salary_est,
+                    "ot_total_paid": ot_total_paid,
+                    "ot_1_5_total": ot_1_5_total if 'ot_1_5_total' in locals() else ot_hours_1_5 * regular_rate if b_complete else ot_1_5_total,
+                    "ot_2_0_total": ot_2_0_total if 'ot_2_0_total' in locals() else dt_hours_2_0 * regular_rate if b_complete else ot_2_0_total,
+                    "ot_1_5_premium": ot_1_5_premium,
+                    "ot_2_0_premium": ot_2_0_premium,
+                    "method_used": method_used,
+                    "civil_married_separated": civil_married_separated,
+                    "over_40": over_40,
+                    "ot_1_5x": ot_1_5x,
+                    "ss_check": ss_check,
+                    "work_authorization_check": work_authorization_check,
+                    "qoc_gross": qoc_gross,
+                    "deduction_limit": deduction_limit,
+                    "total_deduction": total_deduction
+                }
+                st.session_state.show_results = True
+                st.rerun()
 
 # ────────────────────────────────────────────────
 # MOSTRAR RESULTADOS (persiste siempre después de calcular)
@@ -446,7 +584,9 @@ if eligible and st.session_state.show_results:
                 data["method_used"],
                 data["over_40"],
                 data["ot_1_5x"],
-                data["civil_married_separated"]
+                data["civil_married_separated"],
+                data["ss_check"],
+                data["work_authorization_check"]
             ]
         }
         st.dataframe(pd.DataFrame(data_summary), width='stretch')
@@ -505,7 +645,9 @@ if eligible and st.session_state.results:
                     f"{t['data_concepts'][8]}: {data['method_used']}",
                     f"{t['data_concepts'][9]}: {data['over_40']}",
                     f"{t['data_concepts'][10]}: {data['ot_1_5x']}",
-                    f"{t['data_concepts'][11]}: {data['civil_married_separated']}"
+                    f"{t['data_concepts'][11]}: {data['civil_married_separated']}",
+                    f"{t['data_concepts'][12]}: {data['ss_check']}",
+                    f"{t['data_concepts'][13]}: {data['work_authorization_check']}"
                 ]
                 
                 for line in summary_lines:
