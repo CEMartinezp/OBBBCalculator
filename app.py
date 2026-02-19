@@ -60,7 +60,7 @@ texts = {
         - **Opción B**: Escribe tarifa **\\$25**f¿Tu trabajo es de tipo 'no exento' de horas extras? (non-exempt) y 10 horas a 1.5x
         """,
         "step3_title": "Paso 3: Elige cómo ingresar tus datos de horas extras",
-        "step3_info": "**Puedes usar una de estas dos formas** (o ambas si quieres comparar resultados):\n"
+        "step3_info": "**Puedes usar una de estas dos formas**:\n"
                       "- **Opción A – Más rápida** (por monto total recibido):\n"  
                       "  Úsala si solo tienes el importe total que te pagaron por horas extras (en tus recibos o W-2).\n"
                       "  Es más simple, pero menos precisa si hubo pagos a doble tiempo o tarifas diferentes.\n"
