@@ -18,9 +18,9 @@ if "results" not in st.session_state:
 
 if "show_results" not in st.session_state:
     st.session_state.show_results = False
-
+    
 st.set_page_config(
-    page_title="Calculadora Deducción Horas Extras 2025",
+    page_title="ZaiOT",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -79,6 +79,13 @@ def pretty_money_input(
 
     return num
 
+def format_money(value):
+    if value is None or value <= 0:
+        return "$0"
+    formatted = f"{int(value):,}"
+    formatted = formatted.replace(",", ".")
+    return f"${formatted}"
+
 # ────────────────────────────────────────────────
 # TEXTOS COMPLETOS – DICCIONARIO 100% COMPLETO Y ACTUALIZADO
 # ────────────────────────────────────────────────
@@ -104,7 +111,7 @@ texts = {
         "filing_options": ["Soltero", "Cabeza de Familia", "Casado presentando declaración conjunta"],
         "calc_button": "Calcular mi deducción estimada",
         "results_title": "Tus resultados estimados",
-        "footer": "Actualizado en {date} • Esta es solo una estimación – consulta siempre a un profesional de impuestos",
+        "footer": "Actualizado en {date} \n Esta es solo una estimación – Consulta siempre a un profesional de impuestos",
         "answer_options": ["Sí", "No", "No estoy seguro"],
 
         # Ejemplo y pasos
@@ -230,45 +237,50 @@ texts = {
         "disclaimer_msg": "IMPORTANTE: Esta calculadora genera SOLO ESTIMACIONES APROXIMADAS de la deducción por horas extras según la Ley OBBB 2025."
                           "NO es asesoría fiscal, legal ni contable. Los resultados pueden variar y NO garantizan aceptación por el IRS."
                           "Siempre consulta a un contador o profesional de impuestos certificado antes de usar cualquier deducción en tu declaración."
-                          "Uso de esta herramienta es bajo tu propia responsabilidad."
+                          "Uso de esta herramienta es bajo tu propia responsabilidad.",
+        
+        # Theme colors:
+        "theme_modes": ["Modo Claro", "Modo Oscuro"]
     }
 }
 
 # Idioma
-language = st.selectbox("🌐 Idioma", ["Español"], index=0, label_visibility="collapsed")
-lang = "es"
-t = texts[lang]
+col_idioma, col_tema = st.columns([1, 1])  # o [2,1] si quieres más espacio para idioma
+
+language = st.selectbox(
+    "🌐 Idioma",
+    ["Español"],
+    index=0,
+    label_visibility="visible"
+)
+if language == "Español":
+    st.session_state.language = "es"
+else:
+    st.session_state.language = "en"
+    
+t = texts[st.session_state.language]
 
 # ────────────────────────────────────────────────
-# FORMATO DINERO
-# ────────────────────────────────────────────────
-def format_money(value):
-    if value is None or value <= 0:
-        return "$0"
-    formatted = f"{int(value):,}"
-    formatted = formatted.replace(",", ".")
-    return f"${formatted}"
-
-# ────────────────────────────────────────────────
-# TÍTULO Y DESCRIPCIÓN
 # ────────────────────────────────────────────────
 st.title(t["title"])
+
 st.markdown(
     f"""
     <div style="
-        font-size: 1.4rem;
-        line-height: 1.55;
-        padding: 18px 20px;
-        background-color: #e8f4fd;
-        border-left: 7px solid #1e88e5;
-        border-radius: 5px;
-        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+        line-height: 1.6;
+        padding: 16px;
+        background-color: var(--secondary-background-color);
+        border-left: 6px solid #2196F3;
+        border-radius: 4px;
+        color: var(--text-color);
     ">
     {t["desc"]}
     </div>
     """,
     unsafe_allow_html=True
 )
+
 st.warning(t["disclaimer"])
 
 # ────────────────────────────────────────────────
@@ -357,7 +369,7 @@ if eligible:
             step=1000.0,
             decimals=2,          
             help=None,
-            lang=lang
+            lang=st.session_state.language
         )
     with st.expander(f"### {t['step3_title']}", expanded=True):
         st.info(t["step3_info"])
@@ -372,7 +384,7 @@ if eligible:
                 step=100.0,
                 decimals=2,
                 help=t["ot_total_1_5_paid_help"],
-                lang=lang
+                lang=st.session_state.language
             )
             ot_2_0_total = pretty_money_input(
                 t["ot_total_2_0_paid_label"],
@@ -380,7 +392,7 @@ if eligible:
                 step=100.0,
                 decimals=2,
                 help=t["ot_total_2_0_paid_help"],
-                lang=lang
+                lang=st.session_state.language
             )
             amount_included = st.radio(
                 t["amount_included_label"],
@@ -405,7 +417,7 @@ if eligible:
                 step=5.0,
                 help=t["ot_hours_1_5_help"],
                 decimals=2,
-                lang=lang,
+                lang=st.session_state.language,
                 currency=" "
             )
             dt_hours_2_0 = pretty_money_input(
@@ -414,7 +426,7 @@ if eligible:
                 step=5.0,
                 decimals=2,
                 help=t["dt_hours_2_0_help"],
-                lang=lang,
+                lang=st.session_state.language,
                 currency=" "
             )
             
