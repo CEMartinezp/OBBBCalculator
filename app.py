@@ -92,7 +92,7 @@ def format_money(value):
 texts = {
     "es": {
         "title": "Calculadora de Deducción por Horas Extras (Ley OBBB 2025)",
-        "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta \\$12,500 para individual  o \\$25,000 Casado presentando declaración  conjunta).",
+        "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta $12,500 para individual  o $25,000 Casado presentando declaración  conjunta).",
         "step1_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
         "married_separated_label": "¿Eres casado presentando declaración por separado?",
         "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
