@@ -6,6 +6,57 @@ from fpdf import FPDF
 from PyPDF2 import PdfMerger
 from io import BytesIO
 
+
+# ────────────────────────────────────────────────
+# WEB TAB NAME AND LOGO
+# ────────────────────────────────────────────────
+st.set_page_config(
+    page_title="ZaiOT - Overtime Deduction Estimator",
+    # page_icon="💼",   # You can also use a local image path
+    layout="wide",
+    initial_sidebar_state="collapsed"
+    
+)
+
+# ────────────────────────────────────────────────
+# BUTTONS COLOR
+# ────────────────────────────────────────────────
+st.markdown("""
+<style>
+
+/* ALL STREAMLIT BUTTONS → GREEN */
+div[data-testid="stButton"] > button {
+    background-color: #2ecc71 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover */
+div[data-testid="stButton"] > button:hover {
+    background-color: #27ae60 !important;
+    color: white !important;
+    transform: translateY(-1px);
+}
+
+/* Active (click) */
+div[data-testid="stButton"] > button:active {
+    background-color: #219150 !important;
+}
+
+/* Remove gray disabled look */
+div[data-testid="stButton"] > button:disabled {
+    background-color: #2ecc71 !important;
+    color: white !important;
+    opacity: 0.6 !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # ────────────────────────────────────────────────
 # CONFIGURACIÓN INICIAL
 # ────────────────────────────────────────────────
@@ -26,34 +77,33 @@ if "completed_step_2" not in st.session_state:
     
 if "completed_step_3" not in st.session_state:
     st.session_state.completed_step_3 = False
-    
+
+if "pdf_bytes" not in st.session_state:
+    st.session_state.pdf_bytes = None
+
+# ────────────────────────────────────────────────
+# TOP MAIN LOGO
+# ────────────────────────────────────────────────
 st.markdown(
     """
     <div style='text-align:center; margin-bottom:30px;'>
         <h1 style="
-            font-size:48px;
-            font-weight:700;
-            background: linear-gradient(90deg, #1f77b4, #d62728);
+            font-size:52px;
+            font-weight:800;
+            letter-spacing:2px;
+            background: linear-gradient(90deg, #1f6fd2, #7b61ff, #e53935);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom:5px;
         ">
             ZaiOT
         </h1>
-        <p style="color:gray; font-size:16px;">
-            Qualified Overtime Compensation Deduction Estimator
+        <p style="color:#666; font-size:15px;">
+            OVERTIME DEDUCTION CALCULATOR
         </p>
     </div>
     """,
     unsafe_allow_html=True
-)
-
-st.set_page_config(
-    page_title="ZaiOT - Overtime Deduction Estimator",
-    # page_icon="💼",   # You can also use a local image path
-    layout="wide",
-    initial_sidebar_state="collapsed"
-    
 )
 
 def pretty_money_input(
@@ -252,7 +302,7 @@ texts = {
         "total_deduction_success": "Esta es la cantidad que puedes usar para linea 14 del schedule 1a. 💰",
         "total_deduction_no_limit": "**Puedes deducir {}** por el monto adicional que ganaste en horas extras.",
         "total_deduction_with_limit": "**Puedes deducir {}** por horas extras (limitado por el ingreso total).",
-        "limit_info": "El pago adicional por overtime fue de {}, pero según el ingreso total, el máximo que se puede deducir es {}. Por eso se reduce a esta cantidad.",
+        "limit_info": "El pago adicional por overtime fue de \\{}, pero según el ingreso total, el máximo que se puede deducir es \\{}. Por eso se reduce a esta cantidad.",
         "breakdown_subtitle": "Desglose detallado",
         "qoc_gross_label": "Monto total ganado por horas extras",
         "phaseout_limit_label": "Límite máximo deducible permitido por el ingreso total",
@@ -394,12 +444,12 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     )
 
     auto_eligible = (
-                     filing_status != t["filing_status_options"][3] and 
-                     over_40 == t["answer_options"][0] and 
-                     ot_1_5x == t["answer_options"][0] and
-                     ss_check == t["answer_options"][0] and
-                     itin_check == t["answer_options"][1]
-                     )
+        filing_status != t["filing_status_options"][3] and 
+        over_40 == t["answer_options"][0] and 
+        ot_1_5x == t["answer_options"][0] and
+        ss_check == t["answer_options"][0] and
+        itin_check == t["answer_options"][1]
+    )
 
     eligible = auto_eligible or st.session_state.eligible_override
 
@@ -435,7 +485,7 @@ if eligible:
         )
         # ── Solo mostramos el botón si el paso NO está completado ──
         if not st.session_state.completed_step_2:
-            if st.button(t["button_continue"], key="continue_step2", use_container_width=True):
+            if st.button(t["button_continue"], type="secondary", width="stretch"):
                 if total_income <= 0:
                     st.error(t["error_missing_total_income"])
                 else:
@@ -474,7 +524,6 @@ if eligible:
         if not method_choice:
             st.warning(t["warning_no_method_chosen"])
             st.stop()
-
           
         elif method_choice == t["choose_method_options"][0]:
             # show Option A only
@@ -529,7 +578,7 @@ if eligible:
     # ────────────────────────────────────────────────
     # Boton de Calcular
     # ────────────────────────────────────────────────
-    if st.button(t["calculate_button"]):
+    if st.button(t["calculate_button"], type="secondary", width="stretch"):
         # -----------------------------------
         # STEP 1 — Validate Income and Selected Method
         # -----------------------------------
@@ -622,17 +671,17 @@ if eligible:
             "rate_1_5": rate_1_5,
             "rate_2_0": rate_2_0,
             "method_used": method_used,
-            "over_40": over_40,
-            "ot_1_5x": ot_1_5x,
-            "ss_check": ss_check,
-            "filing_status": filing_status,
-            "itin_check": itin_check,
+            "over_40": "--" if not over_40 else over_40,
+            "ot_1_5x": "--" if not ot_1_5x else ot_1_5x,
+            "ss_check": "--" if not ss_check else ss_check,
+            "filing_status": "--" if not filing_status else filing_status,
+            "itin_check": "--" if not itin_check else itin_check,
             "qoc_gross": qoc_gross,
             "deduction_limit": deduction_limit,
             "total_deduction": total_deduction
             }
         st.session_state.show_results = True
-        
+    
 # ────────────────────────────────────────────────
 # MOSTRAR RESULTADOS (persiste siempre después de calcular)
 # ────────────────────────────────────────────────
@@ -692,11 +741,11 @@ if eligible and st.session_state.show_results:
                 "--" if not data["rate_2_0"] else format_number(data["rate_2_0"]),
                 format_number(data['deduction_limit']),
                 data["method_used"],
-                data["over_40"],
-                data["ot_1_5x"],
-                data["filing_status"],
-                data["ss_check"],
-                data["itin_check"],
+                "--" if not data["over_40"] else data["over_40"],
+                "--" if not data["ot_1_5x"] else data["ot_1_5x"],
+                "--" if not data["filing_status"] else data["filing_status"],
+                "--" if not data["ss_check"] else data["ss_check"],
+                "--" if not data["itin_check"] else data["itin_check"],
             ]
         }
         st.dataframe(pd.DataFrame(data_summary), width='stretch')
@@ -704,179 +753,205 @@ if eligible and st.session_state.show_results:
 # ────────────────────────────────────────────────
 # DESCARGA DE REPORTE PDF – CORRECTED VERSION
 # ────────────────────────────────────────────────
+def build_final_pdf(user_name, uploaded_files, num_docs, results):
+
+    pdf = FPDF(format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(20, 20, 20)
+    pdf.add_page()
+
+    def section_title(text):
+        pdf.ln(6)
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_draw_color(200, 200, 200)
+        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+        pdf.ln(4)
+
+    def body_text(text, size=11):
+        pdf.set_font("Helvetica", "", size)
+        pdf.multi_cell(0, 6, text)
+        pdf.ln(2)
+
+    def key_value(label, value, label_width=120, line_height=6):
+        x_start = pdf.get_x()
+        y_start = pdf.get_y()
+
+        # Label
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.multi_cell(label_width, line_height, label, border=0)
+
+        # Save where label ended vertically
+        y_after_label = pdf.get_y()
+
+        # Move to the right of label (same starting Y)
+        pdf.set_xy(x_start + label_width, y_start)
+
+        # Value
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, line_height, value)
+
+        # Move cursor to max Y reached
+        y_after_value = pdf.get_y()
+        pdf.set_y(max(y_after_label, y_after_value))
+
+    # DISCLAIMER
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.cell(0, 10, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.ln(6)
+    body_text(t["disclaimer_msg"], size=11)
+
+    pdf.add_page()
+
+    # HEADER
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, t["pdf_title"], new_x="LMARGIN", new_y="NEXT", align="C")
+
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, t["pdf_generated_by"], new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(
+        0,
+        6,
+        t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
+        new_x="LMARGIN",
+        new_y="NEXT",
+        align="C"
+    )
+
+    pdf.ln(10)
+
+    key_value(t["pdf_user_name"].replace("{}", ""), user_name, label_width=70)
+    key_value(t["pdf_used_count"].replace("{}", ""), str(num_docs), label_width=70)
+
+    # ────────────────────────────────────────────────
+    # DATA SUMMARY
+    # ────────────────────────────────────────────────
+    section_title(t["pdf_summary_title"])
+
+    summary_items = [
+        (t["data_concepts"][0], format_number(results["total_income"])),
+        (t["data_concepts"][1], format_number(results["base_salary"])),
+        (t["data_concepts"][2], format_number(results["ot_1_5_total"])),
+        (t["data_concepts"][3], format_number(results["ot_2_0_total"])),
+        (t["data_concepts"][4], format_number(results["ot_total_paid"])),
+        (t["data_concepts"][5], format_number(results["ot_1_5_premium"])),
+        (t["data_concepts"][6], format_number(results["ot_2_0_premium"])),
+        (t["data_concepts"][7], format_number(results["rate_1_5"])),
+        (t["data_concepts"][8], format_number(results["rate_2_0"])),
+        (t["data_concepts"][9], format_number(results["deduction_limit"])),
+        (t["data_concepts"][10], results["method_used"]),
+        (t["data_concepts"][11], results["over_40"]),
+        (t["data_concepts"][12], results["ot_1_5x"]),
+        (t["data_concepts"][13], results["filing_status"]),
+        (t["data_concepts"][14], results["ss_check"]),
+        (t["data_concepts"][15], results["itin_check"]),
+    ]                  
+
+    for label, value in summary_items:
+        key_value(label + ":", value)
+
+    # ────────────────────────────────────────────────
+    # RESULTS SECTION
+    # ────────────────────────────────────────────────
+
+    section_title(t["pdf_results_title"])
+
+    key_value(t["total_deduction_label"] + ":", format_number(results["total_deduction"]))
+    key_value(t["qoc_gross_label"] + ":", format_number(results["qoc_gross"]))
+    key_value(t["phaseout_limit_label"] + ":", format_number(results["deduction_limit"]))
+
+    # Highlight final deduction
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(0, 102, 0)
+    pdf.multi_cell(0, 8, t["pdf_final_deduction"].format(format_number(results["total_deduction"])))
+    pdf.set_text_color(0, 0, 0)
+
+    # ────────────────────────────────────────────────
+    # EVIDENCE SECTION
+    # ────────────────────────────────────────────────
+
+    section_title(t["pdf_evidence_title"])
+
+    if uploaded_files:
+        body_text(t["pdf_docs_attached"].format(len(uploaded_files)))
+    else:
+        body_text(t["pdf_no_docs"])
+
+    # ────────────────────────────────────────────────
+    # GENERATE FINAL PDF
+    # ────────────────────────────────────────────────
+
+    pdf_bytes = pdf.output()
+
+    merger = PdfMerger()
+    merger.append(BytesIO(pdf_bytes))
+
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            merger.append(BytesIO(uploaded_file.read()))
+
+    final_io = BytesIO()
+    merger.write(final_io)
+    merger.close()
+
+    return final_io.getvalue()
+
 if eligible and st.session_state.results:
     st.subheader(t["download_section_title"])
 
-    user_name = st.text_input(t["download_name_label"], placeholder=t["download_name_placeholder"])
+    user_name = st.text_input(
+        t["download_name_label"],
+        placeholder=t["download_name_placeholder"],
+        key="pdf_user_name_input"
+    )
+
     uploaded_files = st.file_uploader(
         t["download_docs_label"],
         type=["pdf"],
         accept_multiple_files=True,
-        help=t["download_docs_help"]
+        help=t["download_docs_help"],
+        key="pdf_upload"
     )
-    num_docs = len(uploaded_files) if uploaded_files is not None else 0
+    num_docs = len(uploaded_files) if uploaded_files else 0
 
-    if st.button(t["download_button"], type="primary", use_container_width=True):
-        if not user_name.strip():
-            st.error(t["download_error_name"])
-        else:
-            with st.spinner(t["spinner_generating_pdf"]):
-                pdf = FPDF(format="A4")
-                pdf.set_auto_page_break(auto=True, margin=15)
-                pdf.set_margins(20, 20, 20)
-                pdf.add_page()
+    col_gen, col_space = st.columns([1, 3])  # para alinear mejor
 
-                EPW = pdf.w - 2 * pdf.l_margin  # effective page width
-
-                # ────────────────────────────────────────────────
-                # Helper Functions
-                # ────────────────────────────────────────────────
-
-                def section_title(text):
-                    pdf.ln(6)
-                    pdf.set_font("Helvetica", "B", 13)
-                    pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
-                    pdf.set_draw_color(200, 200, 200)
-                    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-                    pdf.ln(4)
-
-                def body_text(text, size=11):
-                    pdf.set_font("Helvetica", "", size)
-                    pdf.multi_cell(0, 6, text)
-                    pdf.ln(2)
-
-                def key_value(label, value, label_width=120, line_height=6):
-                    x_start = pdf.get_x()
-                    y_start = pdf.get_y()
-
-                    # Label
-                    pdf.set_font("Helvetica", "B", 11)
-                    pdf.multi_cell(label_width, line_height, label, border=0)
-
-                    # Save where label ended vertically
-                    y_after_label = pdf.get_y()
-
-                    # Move to the right of label (same starting Y)
-                    pdf.set_xy(x_start + label_width, y_start)
-
-                    # Value
-                    pdf.set_font("Helvetica", "", 11)
-                    pdf.multi_cell(0, line_height, value)
-
-                    # Move cursor to max Y reached
-                    y_after_value = pdf.get_y()
-                    pdf.set_y(max(y_after_label, y_after_value))
-
-                # ────────────────────────────────────────────────
-                # DISCLAIMER PAGE
-                # ────────────────────────────────────────────────
-
-                pdf.set_font("Helvetica", "B", 15)
-                pdf.cell(0, 10, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", align="C")
-                pdf.ln(6)
-
-                body_text(t["disclaimer_msg"], size=11)
-
-                pdf.add_page()
-
-                # ────────────────────────────────────────────────
-                # HEADER
-                # ────────────────────────────────────────────────
-
-                pdf.set_font("Helvetica", "B", 16)
-                pdf.cell(0, 10, t["pdf_title"], new_x="LMARGIN", new_y="NEXT", align="C")
-
-                pdf.set_font("Helvetica", "", 11)
-                pdf.cell(0, 6, t["pdf_generated_by"], new_x="LMARGIN", new_y="NEXT", align="C")
-                pdf.cell(
-                    0,
-                    6,
-                    t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
-                    new_x="LMARGIN",
-                    new_y="NEXT",
-                    align="C"
-                )
-
-                pdf.ln(10)
-
-                key_value(t["pdf_user_name"].replace("{}", ""), user_name, label_width=70)
-                key_value(t["pdf_used_count"].replace("{}", ""), str(num_docs), label_width=70)
-
-                # ────────────────────────────────────────────────
-                # DATA SUMMARY
-                # ────────────────────────────────────────────────
-
-                data = st.session_state.results
-
-                section_title(t["pdf_summary_title"])
-
-                summary_items = [
-                    (t["data_concepts"][0], format_number(data["total_income"])),
-                    (t["data_concepts"][1], format_number(data["base_salary"])),
-                    (t["data_concepts"][4], format_number(data["ot_total_paid"])),
-                    (t["data_concepts"][5], format_number(data["ot_1_5_premium"])),
-                    (t["data_concepts"][6], format_number(data["ot_2_0_premium"])),
-                    (t["data_concepts"][9], format_number(data["deduction_limit"])),
-                    (t["data_concepts"][10], data["method_used"]),
-                ]
-
-                for label, value in summary_items:
-                    key_value(label + ":", value)
-
-                # ────────────────────────────────────────────────
-                # RESULTS SECTION
-                # ────────────────────────────────────────────────
-
-                section_title(t["pdf_results_title"])
-
-                key_value(t["total_deduction_label"] + ":", format_number(data["total_deduction"]))
-                key_value(t["qoc_gross_label"] + ":", format_number(data["qoc_gross"]))
-                key_value(t["phaseout_limit_label"] + ":", format_number(data["deduction_limit"]))
-
-                # Highlight final deduction
-                pdf.ln(6)
-                pdf.set_font("Helvetica", "B", 13)
-                pdf.set_text_color(0, 102, 0)
-                pdf.multi_cell(0, 8, t["pdf_final_deduction"].format(format_number(data["total_deduction"])))
-                pdf.set_text_color(0, 0, 0)
-
-                # ────────────────────────────────────────────────
-                # EVIDENCE SECTION
-                # ────────────────────────────────────────────────
-
-                section_title(t["pdf_evidence_title"])
-
-                if uploaded_files:
-                    body_text(t["pdf_docs_attached"].format(len(uploaded_files)))
+    with col_gen:
+        # Botón GENERAR (solo aparece si NO se ha generado aún)
+        if st.session_state.pdf_bytes is None:
+            if st.button("Generar Reporte PDF", type="primary", disabled=not user_name.strip(), width="stretch"):
+                if not user_name.strip():
+                    st.error("Por favor ingresa tu nombre completo")
                 else:
-                    body_text(t["pdf_no_docs"])
+                    with st.spinner(t["spinner_generating_pdf"]):
+                        try:
+                            pdf_bytes = build_final_pdf(
+                                user_name=user_name,
+                                uploaded_files=uploaded_files,
+                                num_docs=num_docs,
+                                results=st.session_state.results
+                            )
+                            st.session_state.pdf_bytes = pdf_bytes
+                            st.success("¡Reporte generado correctamente!")
+                            st.info("Ahora puedes descargar el reporte abajo ↓")
+                            st.rerun()  # importante para que desaparezca el botón Generar
+                        except Exception as e:
+                            st.error(f"Error al generar el PDF: {str(e)}")
+                            st.info("Por favor intenta de nuevo o verifica los datos.")
 
-                # ────────────────────────────────────────────────
-                # GENERATE FINAL PDF
-                # ────────────────────────────────────────────────
-
-                pdf_bytes = pdf.output()
-
-                merger = PdfMerger()
-                merger.append(BytesIO(pdf_bytes))
-
-                if uploaded_files:
-                    for uploaded_file in uploaded_files:
-                        merger.append(BytesIO(uploaded_file.read()))
-
-                final_io = BytesIO()
-                merger.write(final_io)
-                merger.close()
-
-                final_bytes = final_io.getvalue()
-
-                st.download_button(
-                    label=t["download_button_now"],
-                    data=final_bytes,
-                    file_name=f"Reporte_Deduccion_Horas_Extras_{datetime.now().strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf",
-                )
-
+        # Botón DESCARGAR (solo aparece DESPUÉS de generar)
+        if st.session_state.pdf_bytes is not None:
+            st.download_button(
+                label="Descargar Reporte PDF Ahora",
+                data=st.session_state.pdf_bytes,
+                file_name=f"ZaiOT_Reporte_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True,
+                key="pdf_download_final"
+            )
+        
 # Footer
 st.markdown("---")
 st.caption(t["footer"].format(date=datetime.now().strftime("%Y-%m-%d")))
