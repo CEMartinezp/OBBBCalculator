@@ -4,8 +4,7 @@ from datetime import datetime
 from logic import calculate_ot_premium, apply_phaseout
 from fpdf import FPDF
 from PyPDF2 import PdfMerger
-import tempfile
-import os
+from io import BytesIO
 
 # ────────────────────────────────────────────────
 # CONFIGURACIÓN INICIAL
@@ -18,6 +17,9 @@ if "results" not in st.session_state:
 
 if "show_results" not in st.session_state:
     st.session_state.show_results = False
+    
+if "pdf_generated" not in st.session_state:   
+    st.session_state.pdf_generated = False
     
 st.set_page_config(
     page_title="ZaiOT",
@@ -38,7 +40,7 @@ def pretty_money_input(
     """
     number_input + language-aware pretty preview with correct separators
     """
-    cols = st.columns([1.5, 3])  # or [7, 3], [5, 2], etc. — adjust to taste
+    cols = st.columns([1.5, 3])  # or [7, 3], [5, 2], etc. -- adjust to taste
 
     with cols[0]:
         num = st.number_input(
@@ -79,12 +81,28 @@ def pretty_money_input(
 
     return num
 
-def format_money(value):
+def format_number(value: float, lang:str="es", currency="$", decimals=2) -> str:
     if value is None or value <= 0:
-        return "$0"
-    formatted = f"{int(value):,}"
-    formatted = formatted.replace(",", ".")
-    return f"${formatted}"
+        return f"{currency}0"
+    
+    if lang == "es":
+            # Spanish/LatAm style: dot = thousands, comma = decimal
+            # 1234567.89 → "1.234.567,89"
+            formatted = f"{value:,.{decimals}f}"          # first get US style
+            formatted = formatted.replace(",", "X")      # temp replace
+            formatted = formatted.replace(".", ",")      # dot → comma (decimal)
+            formatted = formatted.replace("X", ".")      # comma → dot (thousands)
+    else:
+        # Default / en-US: comma = thousands, dot = decimal
+        formatted = f"{value:,.{decimals}f}"
+
+    return f"{currency}{formatted}"
+
+def safe_line(txt):
+    # If line is too long without spaces, force break every 30 chars or so
+    if len(txt) > 60 and ' ' not in txt:
+        return '\n'.join(txt[i:i+50] for i in range(0, len(txt), 50))
+    return txt
 
 # ────────────────────────────────────────────────
 # TEXTOS COMPLETOS – DICCIONARIO 100% COMPLETO Y ACTUALIZADO
@@ -94,21 +112,20 @@ texts = {
         "title": "Calculadora de Deducción por Horas Extras (Ley OBBB 2025)",
         "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta $12,500 para individual  o $25,000 Casado presentando declaración  conjunta).",
         "step1_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
-        "married_separated_label": "¿Eres casado presentando declaración por separado?",
         "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
-        "ss_check_label": "¿Tienes un Social Security valido?",
-        "work_authorization_check_label": "¿Tienes un permiso de trabajo valido?",
-        "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a medio tiempo (1.5x tu tarifa normal)?",
-        "unlock_message": "Según tus respuestas, es posible que no califiques automáticamente para la deducción. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
+        "ss_check_label": "¿Tiene un SSN valido para trabajar?",
+        "itin_check_label": "¿Tiene ITIN?",
+        "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a medio tiempo (1.5x la tarifa normal)?",
+        "unlock_message": "Según tus respuestas, es posible que no califiques para la deducción. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
         "override_button": "Sí califico y quiero continuar de todos modos",
         "override_success": "¡Genial! Has confirmado manualmente que calificas.",
         "eligible_blocked_info": "**Las respuestas de elegibilidad están bloqueadas.** Si necesitas cambiarlas, usa el botón de abajo.",
         "eligible_auto_success": "¡Excelente! Cumples los requisitos automáticamente.",
         "reiniciar_button": "🔄 Reiniciar respuestas de elegibilidad",
         "step2_title": "Paso 2: Ingresa tus datos de ingresos y horas extras",
-        "magi_label": "Tu ingreso total aproximado del año (incluye horas extras, bonos, etc.) (\\$)",
-        "filing_label": "Estado civil al presentar impuestos",
-        "filing_options": ["Soltero", "Cabeza de Familia", "Casado presentando declaración conjunta"],
+        "magi_label": "Ingreso total aproximado del año (incluye horas extras, bonos, etc.) (\\$)",
+        "filing_status_label": "Estado civil al presentar impuestos",
+        "filing_status_options": ["Soltero", "Cabeza de Familia", "Casado presentando declaración conjunta", "Casado presentando declaración Separada"],
         "calc_button": "Calcular mi deducción estimada",
         "results_title": "Tus resultados estimados",
         "footer": "Actualizado en {date} \n Esta es solo una estimación – Consulta siempre a un profesional de impuestos",
@@ -117,10 +134,10 @@ texts = {
         # Ejemplo y pasos
         "example_title": "**Ejemplo:**",
         "example_text": """
-        - Tu tarifa normal: **\\$25 por hora**  
-        - Trabajas **10 horas extras** a 1.5x → te pagan **\\$375 total** (\\$250 de base + **\\$125 de dinero extra**)  
+        - Tarifa normal: **\\$25 por hora**  
+        - Trabajas **10 horas extras** a 1.5x → te pagan **\\$375 total** (\\$250 de base + **\\$125 de monto extra**)  
         - **Opción A**: Escribe **\\$375** y elige "Todo junto"  
-        - **Opción B**: Escribe tarifa **\\$25**f¿Tu trabajo es de tipo 'no exento' de horas extras? (non-exempt) y 10 horas a 1.5x
+        - **Opción B**: Escribe tarifa **\\$25**f¿Su trabajo es de tipo 'no exento' de horas extras? (non-exempt) y 10 horas a 1.5x
         """,
         "step3_title": "Paso 3: Elige cómo ingresar tus datos de horas extras",
         "step3_info": "**Puedes usar una de estas dos formas**:\n"
@@ -129,7 +146,7 @@ texts = {
                       "  Es más simple, pero menos precisa si hubo pagos a doble tiempo o tarifas diferentes.\n"
                       "\n"
                       "- **Opción B – Más precisa** (por horas trabajadas):\n"
-                      "  Úsala si tienes registro de las horas extras trabajadas y tu tarifa horaria normal.\n"  
+                      "  Se usa si se tiene el registro de las horas extras trabajadas y la tarifa horaria normal.\n"  
                       "  Es la forma más exacta, especialmente si tuviste horas a 1.5x y a 2.0x.",
                       
         # Opción A
@@ -139,16 +156,10 @@ texts = {
         "ot_total_2_0_paid_label": "Monto TOTAL que te pagaron por horas extras este año a doble tiempo (\\$)",
         "ot_total_2_0_paid_help": "Revisa tus recibos de pago o W-2. Suma **todo** lo recibido por trabajar horas extras a doble tiempo.",
         "ot_multiplier_options": ["1.5x (medio tiempo)", "2.0x (doble tiempo)"],
-        "amount_included_label": "El monto que escribiste por horas extras, ¿incluye...?",
-        "amount_included_options": [
-            "Todo lo que recibí (base + hora extra)",
-            "Solo el dinero extra adicional (el pago por ser horas extras)"
-        ],
-        "amount_included_help": "Especifica si descontaste el pago base en el monto que colocaste.",
 
         # Opción B
         "option_b_title": "**Opción B** (por horas trabajadas)",
-        "regular_rate_label": "Tu tarifa horaria normal (\\$ por hora)",
+        "regular_rate_label": "Tarifa horaria normal (\\$ por hora)",
         "regular_rate_help": "¿Cuánto te pagan normalmente por una hora, sin extras?",
         "ot_hours_1_5_label": "Horas totales en el año pagadas a medio tiempo (1.5x) (numero de horas)",
         "ot_hours_1_5_help": "Suma de **todas** las horas extras que te pagaron a 1.5 veces durante el año.",
@@ -156,73 +167,89 @@ texts = {
         "dt_hours_2_0_help": "Horas pagadas al doble (ej: fines de semana o turnos especiales).",
 
         # Mensajes de ayuda FLSA
-        "flsa_married_separated_help": "Si estas casado pero estas presentando la declaración por separado.",
-        "flsa_over_40_help": "¿Te pagan más cuando superas las 40 horas por semana? Eso es la regla principal.",
-        "flsa_ot_1_5x_help": "¿Casi todo tu pago extra es 1.5 veces tu tarifa normal? (ej: \\$30 en vez de \\$20). Si es doble en algunos días, igual puede contar.",
-        "flsa_ss_check_help": "Si no tienes un Social Security valido no puedes calificar para la dedducion.",
-        "flsa_work_authorization_check_help": "¿Tienes autorización legal para trabajar en EE.UU. (ej: ciudadanía, green card, visa de trabajo, etc.)?",
+        "over_40_help": "¿Te pagan más cuando superas las 40 horas por semana? Eso es la regla principal.",
+        "ot_1_5x_help": "¿Casi todo su pago extra es 1.5 veces su tarifa normal? (ej: \\$30 en vez de \\$20). Si es doble en algunos días, igual puede contar.",
+        "ss_check_help": "Si no tienes un Social Security valido no puedes calificar para la dedducion.",
+        "itin_check_help": "Si tiene un ITIN no califica para la dedducion.",
 
         # Errores y métodos
         "error_no_data": "⚠️ Completa al menos una de las opciones del **Paso 3** para calcular.",
         "error_empty_option_a": "⚠️ Opción A está incompleta. Completa al menos una de las opciones para calcular",
         "error_empty_option_b": "⚠️ Opción b está incompleta. Completa al menos una de las opciones para calcular",
-        "error_missing_total_income": "⚠️ Paso 2 está incompleto. Debes introducir tu ingreso total aproximado del año para continuar.",
+        "error_missing_total_income": "⚠️ Paso 2 está incompleto. Debes introducir su ingreso total aproximado del año para continuar.",
         "error_option_a_b": "Completaste ambas opciones, pero los resultados **no coinciden**.\n\n"
                             "Opción A → Pago adicional estimado: \\{}\n\n"
                             "Opción B → Pago adicional estimado: \\{}",
         "warning_option_a_b": "Revisa y corrige los valores para continuar.",
         "method_hours": "Por horas trabajadas (Opción B)",
-        "method_total_combined": "Por monto total (Opción A - todo junto)",
-        "method_total_premium": "Por monto total (Opción A - solo dinero extra)",
+        "method_total": "Por monto total (Opción A)",
         "method_a_and_b": "Opción A y Opción B",
 
         # Resumen de datos
         "data_tab_title": "Resumen de tus datos",
         "data_subtitle": "Basado en lo que ingresaste",
         "data_concepts": [
-            "Estado civil al declarar impuestos",
             "Ingreso total aproximado del año (base + extras)",
             "Salario base estimado (ingeso total sin extras)",
             "Total pagado por horas extras a medio tiempo (base + extra)",
             "Total pagado por horas extras a doble tiempo (base + extra)",
-            "Total pagado por horas extras (base + extras)",
+            "Total pagado por horas extras",
             "Pago adicional 1.5x (deducible)",
             "Pago adicional 2.0x (deducible)",
+            "Pago por hora por 1.5x",
+            "Pago por hora por 2.0x",
+            "Limite para la deduccion",
             "Método usado",
             "¿Le pagan horas extras por trabajar mas de 40h/semana?",
-            "¿Principalmente 1.5x?",
-            "¿Esta casado presentando declaracion por separado?",
-            "¿Tiene un Social Security válido?",
-            "¿Tienes un permiso de trabajo válido?"
+            "¿Las horas extras son principalmente 1.5x?",
+            "¿Estado civil al declarar impuestos?",
+            "¿Tiene un Social Security válido para trabajar?",
+            "¿Tiene ITIN?"
         ],
+        
+            # format_number(data["total_income"]),
+            # format_number(data["base_salary_est"]),
+            # format_number(data["ot_1_5_total"]),
+            # format_number(data["ot_2_0_total"]),
+            # format_number(data["ot_total_paid"]),
+            # format_number(data["ot_1_5_premium"]),
+            # format_number(data["ot_2_0_premium"]),
+            # "--" if not data["rate_1_5"] else format_number(data["rate_1_5"]),
+            # "--" if not data["rate_2_0"] else format_number(data["rate_2_0"]),
+            # format_number(data['deduction_limit']),
+            # data["method_used"],
+            # data["over_40"],
+            # data["ot_1_5x"],
+            # data["filing_status"],
+            # data["ss_check"],
+            # data["itin_check"],
 
         # Resultados
         "results_tab_title": "Resultados y deducción",
         "total_deduction_label": "Deducción que vas a usar en la linea 14 del schedule 1a",
-        "total_deduction_delta": "Este es el monto final a restar de tus impuestos",
+        "total_deduction_delta": "Este es el monto final a restar de los impuestos",
         "total_deduction_success": "Esta es la cantidad que puedes usar para linea 14 del schedule 1a. 💰",
-        "total_deduction_no_limit": "**Puedes deducir {}** por el dinero adicional que ganaste en horas extras.",
-        "total_deduction_with_limit": "**Puedes deducir {}** por horas extras (limitado por tu ingreso total).",
-        "limit_info": "Tu pago adicional por overtime fue de {}, pero según tu ingreso total el máximo que puedes deducir es {}. Por eso se reduce a esta cantidad.",
+        "total_deduction_no_limit": "**Puedes deducir {}** por el monto adicional que ganaste en horas extras.",
+        "total_deduction_with_limit": "**Puedes deducir {}** por horas extras (limitado por el ingreso total).",
+        "limit_info": "El pago adicional por overtime fue de {}, pero según el ingreso total, el máximo que se puede deducir es {}. Por eso se reduce a esta cantidad.",
         "breakdown_subtitle": "Desglose detallado",
         "qoc_gross_label": "Monto total ganado por horas extras",
-        "phaseout_limit_label": "Límite máximo deducible permitido por tu ingreso total",
+        "phaseout_limit_label": "Límite máximo deducible permitido por el ingreso total",
         "reduction_label": "Reducción aplicada",
-        "final_after_limit_label": "**Deducción final después de comparar tu deducción con el maximo permitido**",
+        "final_after_limit_label": "**Deducción final después de comparar la deducción con el maximo permitido**",
 
         # Descarga PDF
         "download_section_title": "Descargar Reporte en PDF",
-        "download_name_label": "Tu nombre completo (aparecerá en el reporte)",
+        "download_name_label": "Nombre completo (aparecerá en el reporte)",
         "download_name_placeholder": "Ej: Juan Pérez",
-        "download_w2_label": "¿Cuántos formularios W-2 o paystubs usaste para estos cálculos?",
         "download_w2_options": ["1", "2", "3 o más"],
         "download_docs_label": "Sube tus dofcumentos (W-2, paystubs, etc.) como evidencia (opcional, pero recomendado)",
         "download_docs_help": "Puedes subir uno o varios PDFs. Se agregarán al final del reporte.",
         "download_button": "Generar y Descargar Reporte PDF",
-        "download_error_name": "Por favor, ingresa tu nombre para generar el reporte.",
+        "download_error_name": "Por favor, ingrese su nombre para generar el reporte.",
         "pdf_title": "Reporte de Deducción por Horas Extras - Ley OBBB 2025",
-        "pdf_generated_by": "Generado por ZaiOT",
-        "pdf_date": "Fecha de generación: {}",
+        "pdf_generated_by": "Hecho con ZaiOT",
+        "pdf_date": "Fecha: {}",
         "pdf_user_name": "Nombre del contribuyente: {}",
         "pdf_used_count": "Número de documentos utilizados: {}",
         "pdf_summary_title": "Resumen de Datos Ingresados",
@@ -233,11 +260,11 @@ texts = {
         # Disclaimer
         "disclaimer_label": "DESCARGO DE RESPONSABILIDAD",
         "disclaimer": "**Disclaimer:** Esta herramienta es solo para estimaciones informativas. No sustituye asesoría profesional de impuestos.\n"  
-                      "Consulta a un contador certificado antes de usar cualquier deducción en tu declaración fiscal.",
+                      "Consulte con un contador certificado antes de usar cualquier deducción en una declaración fiscal.",
         "disclaimer_msg": "IMPORTANTE: Esta calculadora genera SOLO ESTIMACIONES APROXIMADAS de la deducción por horas extras según la Ley OBBB 2025."
                           "NO es asesoría fiscal, legal ni contable. Los resultados pueden variar y NO garantizan aceptación por el IRS."
-                          "Siempre consulta a un contador o profesional de impuestos certificado antes de usar cualquier deducción en tu declaración."
-                          "Uso de esta herramienta es bajo tu propia responsabilidad.",
+                          "Siempre consulte a un contador o profesional de impuestos certificado antes de usar cualquier deducción en una declaración."
+                          "Uso de esta herramienta es bajo su propia responsabilidad.",
         
         # Theme colors:
         "theme_modes": ["Modo Claro", "Modo Oscuro"]
@@ -289,13 +316,22 @@ st.warning(t["disclaimer"])
 eligible = st.session_state.eligible_override
 
 with st.expander(f"### {t['step1_title']}", expanded=not eligible):
+    
+    filing_status = st.radio(
+        t["filing_status_label"],
+        t["filing_status_options"],
+        index=0,
+        horizontal=True,
+        disabled=eligible,
+    )
+    
     over_40 = st.radio(
         t["over_40_label"],
         t["answer_options"],
         index=2,
         horizontal=True,
         disabled=eligible,
-        help=t["flsa_over_40_help"]
+        help=t["over_40_help"]
     )
     ot_1_5x = st.radio(
         t["ot_1_5x_label"],
@@ -303,15 +339,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=2,
         horizontal=True,
         disabled=eligible,
-        help=t["flsa_ot_1_5x_help"]
-    )
-    civil_married_separated = st.radio(
-        t["married_separated_label"],
-        t["answer_options"],
-        index=2,
-        horizontal=True,
-        disabled=eligible,
-        help=t["flsa_married_separated_help"]
+        help=t["ot_1_5x_help"]
     )
     ss_check = st.radio(
         t["ss_check_label"],
@@ -319,23 +347,23 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=2,
         horizontal=True,
         disabled=eligible,
-        help=t["flsa_ss_check_help"]
+        help=t["ss_check_help"]
     )
-    work_authorization_check = st.radio(
-        t["work_authorization_check_label"],
+    itin_check = st.radio(
+        t["itin_check_label"],
         t["answer_options"],
         index=2,
         horizontal=True,
         disabled=eligible,
-        help=t["flsa_work_authorization_check_help"]
+        help=t["itin_check_help"]
     )
 
     auto_eligible = (
-                     civil_married_separated == t["answer_options"][1] and 
+                     filing_status != t["filing_status_options"][3] and 
                      over_40 == t["answer_options"][0] and 
                      ot_1_5x == t["answer_options"][0] and
                      ss_check == t["answer_options"][0] and
-                     work_authorization_check == t["answer_options"][0]
+                     itin_check == t["answer_options"][1]
                      )
 
     eligible = auto_eligible or st.session_state.eligible_override
@@ -362,7 +390,6 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
 # ────────────────────────────────────────────────
 if eligible:
     with st.expander(f"### {t['step2_title']}", expanded=True):
-        filing_status = st.selectbox(t["filing_label"], t["filing_options"])
         total_income = pretty_money_input(
             t["magi_label"],
             value=0.0,
@@ -394,14 +421,7 @@ if eligible:
                 help=t["ot_total_2_0_paid_help"],
                 lang=st.session_state.language
             )
-            amount_included = st.radio(
-                t["amount_included_label"],
-                t["amount_included_options"],
-                horizontal=True,
-                key="type_total",
-                help=t["amount_included_help"],
-            )
-            is_total_combined = "todo" in amount_included.lower()
+
 
         with st.expander(t["option_b_title"], expanded=False):
             regular_rate = pretty_money_input(
@@ -486,14 +506,17 @@ if eligible:
                 ot_1_5_premium_b = calculate_ot_premium(ot_1_5_total_b, 1.5, "total")
                 ot_2_0_premium_b = calculate_ot_premium(ot_2_0_total_b, 2.0, "total")
                 qoc_gross_b = ot_1_5_premium_b + ot_2_0_premium_b
+                rate_1_5 = regular_rate * 1.5
+                rate_2_0 = regular_rate * 2.0
 
             # Opción A
             if a_complete:
                 ot_total_paid_a = ot_1_5_total + ot_2_0_total
-                amount_type = "total" if is_total_combined else "premium"
-                ot_1_5_premium_a = calculate_ot_premium(ot_1_5_total, 1.5, amount_type)
-                ot_2_0_premium_a = calculate_ot_premium(ot_2_0_total, 2.0, amount_type)
+                ot_1_5_premium_a = calculate_ot_premium(ot_1_5_total, 1.5, "total")
+                ot_2_0_premium_a = calculate_ot_premium(ot_2_0_total, 2.0, "total")
                 qoc_gross_a = ot_1_5_premium_a + ot_2_0_premium_a
+                rate_1_5 = None
+                rate_2_0 = None
 
             # ────────────────────────────────────────────────
             # Decidir qué usar
@@ -513,9 +536,8 @@ if eligible:
                     ot_2_0_premium = ot_2_0_premium_b
                 else:
                     st.session_state.calc_error = error_msg
-                    st.error(t["error_option_a_b"].format(format_money(qoc_gross_a), format_money(qoc_gross_b))) 
+                    st.error(t["error_option_a_b"].format(format_number(qoc_gross_a), format_number(qoc_gross_b))) 
                     st.warning(t["warning_option_a_b"])                   
-                    st.stop()  # ← importante: no continuar si hay inconsistencia
 
             elif b_complete:
                 method_used = t["method_hours"]
@@ -525,7 +547,7 @@ if eligible:
                 ot_2_0_premium = ot_2_0_premium_b
 
             elif a_complete:
-                method_used = t["method_total_combined"] if is_total_combined else t["method_total_premium"]
+                method_used = t["method_total"]
                 qoc_gross = qoc_gross_a
                 ot_total_paid = ot_total_paid_a
                 ot_1_5_premium = ot_1_5_premium_a
@@ -535,36 +557,41 @@ if eligible:
             # Continuar con el cálculo final
             # ────────────────────────────────────────────────
             if not error_msg:  # solo si no hubo inconsistencia
-                base_salary_est = total_income - qoc_gross
-
-                is_joint = filing_status == t["filing_options"][2]
+                base_salary_est = total_income - ot_total_paid
+                is_joint = filing_status == t["filing_status_options"][2]
                 max_deduction = 25000 if is_joint else 12500
                 phase_start = 300000 if is_joint else 150000
                 deduction_limit = max(0.0, apply_phaseout(total_income, max_deduction, phase_start))
                 total_deduction = min(qoc_gross, deduction_limit)
-
-                # Guardar resultados
-                st.session_state.results = {
-                    "filing_status": filing_status,
-                    "total_income": total_income,
-                    "base_salary_est": base_salary_est,
-                    "ot_total_paid": ot_total_paid,
-                    "ot_1_5_total": ot_hours_1_5 * regular_rate * 1.5 if b_complete else ot_1_5_total,
-                    "ot_2_0_total": dt_hours_2_0 * regular_rate * 2 if b_complete else ot_2_0_total,
-                    "ot_1_5_premium": ot_1_5_premium,
-                    "ot_2_0_premium": ot_2_0_premium,
-                    "method_used": method_used,
-                    "civil_married_separated": civil_married_separated,
-                    "over_40": over_40,
-                    "ot_1_5x": ot_1_5x,
-                    "ss_check": ss_check,
-                    "work_authorization_check": work_authorization_check,
-                    "qoc_gross": qoc_gross,
-                    "deduction_limit": deduction_limit,
-                    "total_deduction": total_deduction
-                }
-                st.session_state.show_results = True
-                st.rerun()
+                
+                if base_salary_est <= 0:
+                    error_msg = "Su ingreso total aproximado del año no puede ser menor que el total pagado por sus horas extras."
+                    st.session_state.calc_error = error_msg
+                    st.error(error_msg)
+                    
+                else:
+                    # Guardar resultados
+                    st.session_state.results = {
+                        "total_income": total_income,
+                        "base_salary_est": base_salary_est,
+                        "ot_total_paid": ot_total_paid,
+                        "ot_1_5_total": ot_hours_1_5 * regular_rate * 1.5 if b_complete else ot_1_5_total,
+                        "ot_2_0_total": dt_hours_2_0 * regular_rate * 2 if b_complete else ot_2_0_total,
+                        "ot_1_5_premium": ot_1_5_premium,
+                        "ot_2_0_premium": ot_2_0_premium,
+                        "deduction_limit": deduction_limit,
+                        "method_used": method_used,
+                        "over_40": over_40,
+                        "ot_1_5x": ot_1_5x,
+                        "ss_check": ss_check,
+                        "filing_status": filing_status,
+                        "itin_check": itin_check,
+                        "qoc_gross": qoc_gross,
+                        "total_deduction": total_deduction,
+                        "rate_1_5": rate_1_5,
+                        "rate_2_0": rate_2_0
+                    }
+                    st.session_state.show_results = True
         
 # ────────────────────────────────────────────────
 # MOSTRAR RESULTADOS (persiste siempre después de calcular)
@@ -581,10 +608,10 @@ if eligible and st.session_state.show_results:
         total_deduction = data["total_deduction"]
 
         if qoc_gross <= deduction_limit:
-            st.success(t["total_deduction_no_limit"].format(format_money(total_deduction)))
+            st.success(t["total_deduction_no_limit"].format(format_number(total_deduction)))
         else:
-            st.warning(t["total_deduction_with_limit"].format(format_money(total_deduction)))
-            st.info(t["limit_info"].format(f'\\{format_money(qoc_gross)}', f'\\{format_money(deduction_limit)}'))
+            st.warning(t["total_deduction_with_limit"].format(format_number(total_deduction)))
+            st.info(t["limit_info"].format(f'\\{format_number(qoc_gross)}', f'\\{format_number(deduction_limit)}'))
 
         st.markdown("---")
 
@@ -593,16 +620,16 @@ if eligible and st.session_state.show_results:
         with col_left_res:
             st.metric(
                 label=t["total_deduction_label"],
-                value=format_money(total_deduction),
+                value=format_number(total_deduction),
                 delta=t["total_deduction_delta"]
             )
             st.success(t["total_deduction_success"])
 
         with col_right_res:
             st.subheader(t["breakdown_subtitle"])
-            st.metric(t["qoc_gross_label"], format_money(qoc_gross))
-            st.metric(t["phaseout_limit_label"], format_money(deduction_limit))
-            st.metric(t["final_after_limit_label"], format_money(total_deduction), delta_color="normal")
+            st.metric(t["qoc_gross_label"], format_number(qoc_gross))
+            st.metric(t["phaseout_limit_label"], format_number(deduction_limit))
+            st.metric(t["final_after_limit_label"], format_number(total_deduction), delta_color="normal")
     
     with tab_data:
         st.subheader(t["data_subtitle"])
@@ -610,26 +637,28 @@ if eligible and st.session_state.show_results:
         data_summary = {
             "Concepto": t["data_concepts"],
             "Valor": [
-                data["filing_status"],
-                format_money(data["total_income"]),
-                format_money(data["base_salary_est"]),
-                format_money(data["ot_1_5_total"]),
-                format_money(data["ot_2_0_total"]),
-                format_money(data["ot_total_paid"]),
-                format_money(data["ot_1_5_premium"]),
-                format_money(data["ot_2_0_premium"]),
+                format_number(data["total_income"]),
+                format_number(data["base_salary_est"]),
+                format_number(data["ot_1_5_total"]),
+                "--" if not data["ot_2_0_total"] else format_number(data["ot_2_0_total"]),
+                format_number(data["ot_total_paid"]),
+                format_number(data["ot_1_5_premium"]),
+                "--" if not data["ot_2_0_premium"] else format_number(data["ot_2_0_premium"]),
+                "--" if not data["rate_1_5"] else format_number(data["rate_1_5"]),
+                "--" if not data["rate_2_0"] else format_number(data["rate_2_0"]),
+                format_number(data['deduction_limit']),
                 data["method_used"],
                 data["over_40"],
                 data["ot_1_5x"],
-                data["civil_married_separated"],
+                data["filing_status"],
                 data["ss_check"],
-                data["work_authorization_check"]
+                data["itin_check"],
             ]
         }
         st.dataframe(pd.DataFrame(data_summary), width='stretch')
 
 # ────────────────────────────────────────────────
-# DESCARGA DE REPORTE PDF
+# DESCARGA DE REPORTE PDF – CORRECTED VERSION
 # ────────────────────────────────────────────────
 if eligible and st.session_state.results:
     st.subheader(t["download_section_title"])
@@ -641,136 +670,174 @@ if eligible and st.session_state.results:
         accept_multiple_files=True,
         help=t["download_docs_help"]
     )
-    # Número de documentos cargados
     num_docs = len(uploaded_files) if uploaded_files is not None else 0
 
-    if st.button(t["download_button"], type="primary", width='stretch'):
+    if st.button(t["download_button"], type="primary", use_container_width=True):
         if not user_name.strip():
             st.error(t["download_error_name"])
         else:
             with st.spinner("Generando reporte PDF..."):
-                # Crear PDF principal
-                pdf = FPDF()
+                pdf = FPDF(format="A4")
+                pdf.set_auto_page_break(auto=True, margin=15)
+                pdf.set_margins(20, 20, 20)
                 pdf.add_page()
-                
-                # ── Página 1: SOLO el disclaimer ────────────────────────────────
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 15, t["disclaimer_label"], ln=True, align="C")
-                pdf.ln(8)
-                pdf.set_font("Arial", "B", 11)
-                pdf.multi_cell(0, 7, t["disclaimer_msg"], align="J")
-                # Forzamos nueva página para el contenido real
-                pdf.add_page() 
-                
-                # ── A partir de aquí va el contenido normal ──────────────────────
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, t["pdf_title"], ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, t["pdf_generated_by"], ln=True, align="C")
-                pdf.cell(0, 10, t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")), ln=True, align="C")
-                pdf.ln(8)
-                
-                # User name, document count, summary, etc.
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, t["pdf_user_name"].format(user_name), ln=True)
-                pdf.cell(0, 10, t["pdf_used_count"].format(num_docs), ln=True)
-                pdf.ln(8)
 
-                # Resumen
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, t["pdf_summary_title"], ln=True)
-                pdf.set_font("Arial", "", 10)
+                EPW = pdf.w - 2 * pdf.l_margin  # effective page width
+
+                # ────────────────────────────────────────────────
+                # Helper Functions
+                # ────────────────────────────────────────────────
+
+                def section_title(text):
+                    pdf.ln(6)
+                    pdf.set_font("Helvetica", "B", 13)
+                    pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_draw_color(200, 200, 200)
+                    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+                    pdf.ln(4)
+
+                def body_text(text, size=11):
+                    pdf.set_font("Helvetica", "", size)
+                    pdf.multi_cell(0, 6, text)
+                    pdf.ln(2)
+
+                def key_value(label, value):
+                    label_width = 70
+                    line_height = 6
+
+                    x_start = pdf.get_x()
+                    y_start = pdf.get_y()
+
+                    # Label
+                    pdf.set_font("Helvetica", "B", 11)
+                    pdf.multi_cell(label_width, line_height, label, border=0)
+
+                    # Save where label ended vertically
+                    y_after_label = pdf.get_y()
+
+                    # Move to the right of label (same starting Y)
+                    pdf.set_xy(x_start + label_width, y_start)
+
+                    # Value
+                    pdf.set_font("Helvetica", "", 11)
+                    pdf.multi_cell(0, line_height, value)
+
+                    # Move cursor to max Y reached
+                    y_after_value = pdf.get_y()
+                    pdf.set_y(max(y_after_label, y_after_value))
+
+                def money_line(label, value):
+                    key_value(label, value)
+
+                # ────────────────────────────────────────────────
+                # DISCLAIMER PAGE
+                # ────────────────────────────────────────────────
+
+                pdf.set_font("Helvetica", "B", 15)
+                pdf.cell(0, 10, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", align="C")
+                pdf.ln(6)
+
+                body_text(t["disclaimer_msg"], size=11)
+
+                pdf.add_page()
+
+                # ────────────────────────────────────────────────
+                # HEADER
+                # ────────────────────────────────────────────────
+
+                pdf.set_font("Helvetica", "B", 16)
+                pdf.cell(0, 10, t["pdf_title"], new_x="LMARGIN", new_y="NEXT", align="C")
+
+                pdf.set_font("Helvetica", "", 11)
+                pdf.cell(0, 6, t["pdf_generated_by"], new_x="LMARGIN", new_y="NEXT", align="C")
+                pdf.cell(
+                    0,
+                    6,
+                    t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
+                    new_x="LMARGIN",
+                    new_y="NEXT",
+                    align="C"
+                )
+
+                pdf.ln(10)
+
+                key_value(t["pdf_user_name"].replace("{}", ""), user_name)
+                key_value(t["pdf_used_count"].replace("{}", ""), str(num_docs))
+
+                # ────────────────────────────────────────────────
+                # DATA SUMMARY
+                # ────────────────────────────────────────────────
 
                 data = st.session_state.results
-                summary_lines = [
-                    f"{t['data_concepts'][0]}: {data['filing_status']}",
-                    f"{t['data_concepts'][1]}: {format_money(data['total_income'])}",
-                    f"{t['data_concepts'][2]}: {format_money(data['base_salary_est'])}",
-                    f"{t['data_concepts'][3]}: {format_money(data['ot_1_5_total'])}",
-                    f"{t['data_concepts'][4]}: {format_money(data['ot_2_0_total'])}",
-                    f"{t['data_concepts'][5]}: {format_money(data['ot_total_paid'])}",
-                    f"{t['data_concepts'][6]}: {format_money(data['ot_1_5_premium'])}",
-                    f"{t['data_concepts'][7]}: {format_money(data['ot_2_0_premium'])}",
-                    f"{t['data_concepts'][8]}: {data['method_used']}",
-                    f"{t['data_concepts'][9]}: {data['over_40']}",
-                    f"{t['data_concepts'][10]}: {data['ot_1_5x']}",
-                    f"{t['data_concepts'][11]}: {data['civil_married_separated']}",
-                    f"{t['data_concepts'][12]}: {data['ss_check']}",
-                    f"{t['data_concepts'][13]}: {data['work_authorization_check']}"
+
+                section_title(t["pdf_summary_title"])
+
+                summary_items = [
+                    (t["data_concepts"][0], format_number(data["total_income"])),
+                    (t["data_concepts"][1], format_number(data["base_salary_est"])),
+                    (t["data_concepts"][4], format_number(data["ot_total_paid"])),
+                    (t["data_concepts"][5], format_number(data["ot_1_5_premium"])),
+                    (t["data_concepts"][6], format_number(data["ot_2_0_premium"])),
+                    (t["data_concepts"][9], format_number(data["deduction_limit"])),
+                    (t["data_concepts"][10], data["method_used"]),
                 ]
-                
-                for line in summary_lines:
-                    pdf.multi_cell(0, 8, line)
 
-                pdf.ln(8)
+                for label, value in summary_items:
+                    key_value(label + ":", value)
 
-                # Resultados
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, t["pdf_results_title"], ln=True)
-                pdf.set_font("Arial", "", 10)
-                pdf.multi_cell(0, 8, f"{t['total_deduction_label']}: {format_money(data['total_deduction'])}")
-                pdf.multi_cell(0, 8, f"{t['qoc_gross_label']}: {format_money(data['qoc_gross'])}")
-                pdf.multi_cell(0, 8, f"{t['phaseout_limit_label']}: {format_money(data['deduction_limit'])}")
-                pdf.ln(8)
+                # ────────────────────────────────────────────────
+                # RESULTS SECTION
+                # ────────────────────────────────────────────────
 
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, t["pdf_evidence_title"], ln=True)
-                pdf.set_font("Arial", "", 10)
+                section_title(t["pdf_results_title"])
+
+                money_line(t["total_deduction_label"] + ":", format_number(data["total_deduction"]))
+                money_line(t["qoc_gross_label"] + ":", format_number(data["qoc_gross"]))
+                money_line(t["phaseout_limit_label"] + ":", format_number(data["deduction_limit"]))
+
+                # Highlight final deduction
+                pdf.ln(6)
+                pdf.set_font("Helvetica", "B", 13)
+                pdf.set_text_color(0, 102, 0)
+                pdf.multi_cell(0, 8, f"DEDUCCIÓN FINAL: {format_number(data['total_deduction'])}")
+                pdf.set_text_color(0, 0, 0)
+
+                # ────────────────────────────────────────────────
+                # EVIDENCE SECTION
+                # ────────────────────────────────────────────────
+
+                section_title(t["pdf_evidence_title"])
+
                 if uploaded_files:
-                    pdf.multi_cell(0, 8, f"Se adjuntan {len(uploaded_files)} documento(s) como evidencia.")
+                    body_text(f"Se adjuntan {len(uploaded_files)} documento(s) como evidencia.")
                 else:
-                    pdf.multi_cell(0, 8, t["pdf_no_docs"])
+                    body_text(t["pdf_no_docs"])
 
-                # Guardar PDF principal de forma segura (sin mkstemp)
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_main:
-                    pdf.output(tmp_main.name)
-                    main_pdf_path = tmp_main.name
+                # ────────────────────────────────────────────────
+                # GENERATE FINAL PDF
+                # ────────────────────────────────────────────────
 
-                # Cerrar explícitamente
-                tmp_main.close()
+                pdf_bytes = pdf.output()
 
-                # Combinar PDFs
                 merger = PdfMerger()
-                merger.append(main_pdf_path)
+                merger.append(BytesIO(pdf_bytes))
 
-                temp_upload_paths = []
                 if uploaded_files:
                     for uploaded_file in uploaded_files:
-                        tmp_path = tempfile.mktemp(suffix=".pdf")  # mktemp sigue siendo seguro aquí
-                        with open(tmp_path, "wb") as tmp_upload:
-                            tmp_upload.write(uploaded_file.read())
-                        merger.append(tmp_path)
-                        temp_upload_paths.append(tmp_path)
+                        merger.append(BytesIO(uploaded_file.read()))
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_final:
-                    merger.write(tmp_final.name)
-                    final_pdf_path = tmp_final.name
-
+                final_io = BytesIO()
+                merger.write(final_io)
                 merger.close()
-                tmp_final.close()
 
-                # Limpieza
-                os.unlink(main_pdf_path)
-                for path in temp_upload_paths:
-                    try:
-                        os.unlink(path)
-                    except PermissionError:
-                        pass
+                final_bytes = final_io.getvalue()
 
-                # Descarga
-                with open(final_pdf_path, "rb") as f:
-                    st.download_button(
-                        label="Descargar Reporte PDF Ahora",
-                        data=f,
-                        file_name=f"Reporte_Deduccion_Horas_Extras_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        key="download_pdf"
-                    )
-
-                try:
-                    os.unlink(final_pdf_path)
-                except PermissionError:
-                    pass
+                st.download_button(
+                    label="Descargar Reporte PDF Ahora",
+                    data=final_bytes,
+                    file_name=f"Reporte_Deduccion_Horas_Extras_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                )
 
 # Footer
 st.markdown("---")
