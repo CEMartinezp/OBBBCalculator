@@ -113,7 +113,7 @@ texts = {
         "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta $12,500 para individual  o $25,000 Casado presentando declaración  conjunta).",
         "step1_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
         "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
-        "ss_check_label": "¿Tiene un SSN valido para trabajar?",
+        "ss_check_label": "¿Tiene un SSN válido para trabajar?",
         "itin_check_label": "¿Tiene ITIN?",
         "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a medio tiempo (1.5x la tarifa normal)?",
         "unlock_message": "Según tus respuestas, es posible que no califiques para la deducción. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
@@ -134,20 +134,40 @@ texts = {
         # Ejemplo y pasos
         "example_title": "**Ejemplo:**",
         "example_text": """
-        - Tarifa normal: **\\$25 por hora**  
-        - Trabajas **10 horas extras** a 1.5x → te pagan **\\$375 total** (\\$250 de base + **\\$125 de monto extra**)  
-        - **Opción A**: Escribe **\\$375** y elige "Todo junto"  
-        - **Opción B**: Escribe tarifa **\\$25**f¿Su trabajo es de tipo 'no exento' de horas extras? (non-exempt) y 10 horas a 1.5x
+            - **Tarifa normal:** \\$25 por hora  
+            - Trabajas **10 horas extras** pagadas a **1.5x**  
+
+            👉 Cálculo:
+            - Pago total recibido por esas horas: **\\$375**  
+            (\\$25 × 1.5 × 10 horas)  
+            - De ese total:
+            - **\\$250** corresponde al salario base (\\$25 × 10)
+            - **\\$125** corresponde al pago adicional por horas extras (monto deducible)
+
+            ---
+
+            **Opción A (Más rápida):**  
+            Escribe **\\$375** como monto total pagado por horas extras.
+
+            **Opción B (Más precisa):**  
+            Escribe:
+            - Tarifa normal: **\\$25**
+            - Horas a 1.5x: **10**
         """,
         "step3_title": "Paso 3: Elige cómo ingresar tus datos de horas extras",
         "step3_info": "**Puedes usar una de estas dos formas**:\n"
                       "- **Opción A – Más rápida** (por monto total recibido):\n"  
                       "  Úsala si solo tienes el importe total que te pagaron por horas extras (en tus recibos o W-2).\n"
-                      "  Es más simple, pero menos precisa si hubo pagos a doble tiempo o tarifas diferentes.\n"
+                      "  Es más simple, pero menos precisa si hubo pagos a doble tiempo o tarifas diferentes, y no podrá mostrar el monto de cuanto ganas por hora por el tiempo extra.\n"
                       "\n"
                       "- **Opción B – Más precisa** (por horas trabajadas):\n"
                       "  Se usa si se tiene el registro de las horas extras trabajadas y la tarifa horaria normal.\n"  
                       "  Es la forma más exacta, especialmente si tuviste horas a 1.5x y a 2.0x.",
+        "choose_method_label": "¿Cómo deseas ingresar tus horas extras?",
+        "choose_method_options": [
+            "Tengo el monto total pagado (más rápido)",
+            "Tengo mis horas y tarifa (más preciso)"
+        ],
                       
         # Opción A
         "option_a_title": "**Opción A** (por monto total pagado)",
@@ -161,22 +181,24 @@ texts = {
         "option_b_title": "**Opción B** (por horas trabajadas)",
         "regular_rate_label": "Tarifa horaria normal (\\$ por hora)",
         "regular_rate_help": "¿Cuánto te pagan normalmente por una hora, sin extras?",
-        "ot_hours_1_5_label": "Horas totales en el año pagadas a medio tiempo (1.5x) (numero de horas)",
+        "ot_hours_1_5_label": "Horas totales en el año pagadas a medio tiempo (1.5x) (número de horas)",
         "ot_hours_1_5_help": "Suma de **todas** las horas extras que te pagaron a 1.5 veces durante el año.",
-        "dt_hours_2_0_label": "Horas totales en el año pagadas a doble tiempo (2.0x) (numero de horas)",
+        "dt_hours_2_0_label": "Horas totales en el año pagadas a doble tiempo (2.0x) (número de horas)",
         "dt_hours_2_0_help": "Horas pagadas al doble (ej: fines de semana o turnos especiales).",
 
         # Mensajes de ayuda FLSA
         "over_40_help": "¿Te pagan más cuando superas las 40 horas por semana? Eso es la regla principal.",
         "ot_1_5x_help": "¿Casi todo su pago extra es 1.5 veces su tarifa normal? (ej: \\$30 en vez de \\$20). Si es doble en algunos días, igual puede contar.",
-        "ss_check_help": "Si no tienes un Social Security valido no puedes calificar para la dedducion.",
-        "itin_check_help": "Si tiene un ITIN no califica para la dedducion.",
+        "ss_check_help": "Si no tienes un Social Security válido no puedes calificar para la deducción.",
+        "itin_check_help": "Si tiene un ITIN no califica para la deducción.",
 
         # Errores y métodos
         "error_no_data": "⚠️ Completa al menos una de las opciones del **Paso 3** para calcular.",
         "error_empty_option_a": "⚠️ Opción A está incompleta. Completa al menos una de las opciones para calcular",
         "error_empty_option_b": "⚠️ Opción b está incompleta. Completa al menos una de las opciones para calcular",
         "error_missing_total_income": "⚠️ Paso 2 está incompleto. Debes introducir su ingreso total aproximado del año para continuar.",
+        "error_partial_option_b_conflict": "Has intentado completar ambas opciones, pero aún falta completar la Opción B. Para continuar, por favor finaliza o elimina la información ingresada en la Opción B.",
+        "error_income_less_than_ot": "Su ingreso total aproximado del año no puede ser menor que el total pagado por sus horas extras.",
         "error_option_a_b": "Completaste ambas opciones, pero los resultados **no coinciden**.\n\n"
                             "Opción A → Pago adicional estimado: \\{}\n\n"
                             "Opción B → Pago adicional estimado: \\{}",
@@ -184,13 +206,14 @@ texts = {
         "method_hours": "Por horas trabajadas (Opción B)",
         "method_total": "Por monto total (Opción A)",
         "method_a_and_b": "Opción A y Opción B",
+        
 
         # Resumen de datos
         "data_tab_title": "Resumen de tus datos",
         "data_subtitle": "Basado en lo que ingresaste",
         "data_concepts": [
             "Ingreso total aproximado del año (base + extras)",
-            "Salario base estimado (ingeso total sin extras)",
+            "Salario base estimado (ingreso total sin extras)",
             "Total pagado por horas extras a medio tiempo (base + extra)",
             "Total pagado por horas extras a doble tiempo (base + extra)",
             "Total pagado por horas extras",
@@ -200,31 +223,16 @@ texts = {
             "Pago por hora por 2.0x",
             "Limite para la deduccion",
             "Método usado",
-            "¿Le pagan horas extras por trabajar mas de 40h/semana?",
+            "¿Le pagan horas extras por trabajar más de 40h/semana?",
             "¿Las horas extras son principalmente 1.5x?",
             "¿Estado civil al declarar impuestos?",
             "¿Tiene un Social Security válido para trabajar?",
             "¿Tiene ITIN?"
         ],
-        
-            # format_number(data["total_income"]),
-            # format_number(data["base_salary_est"]),
-            # format_number(data["ot_1_5_total"]),
-            # format_number(data["ot_2_0_total"]),
-            # format_number(data["ot_total_paid"]),
-            # format_number(data["ot_1_5_premium"]),
-            # format_number(data["ot_2_0_premium"]),
-            # "--" if not data["rate_1_5"] else format_number(data["rate_1_5"]),
-            # "--" if not data["rate_2_0"] else format_number(data["rate_2_0"]),
-            # format_number(data['deduction_limit']),
-            # data["method_used"],
-            # data["over_40"],
-            # data["ot_1_5x"],
-            # data["filing_status"],
-            # data["ss_check"],
-            # data["itin_check"],
 
         # Resultados
+        "data_column_concept": "Concepto",
+        "data_column_value": "Valor",
         "results_tab_title": "Resultados y deducción",
         "total_deduction_label": "Deducción que vas a usar en la linea 14 del schedule 1a",
         "total_deduction_delta": "Este es el monto final a restar de los impuestos",
@@ -236,14 +244,16 @@ texts = {
         "qoc_gross_label": "Monto total ganado por horas extras",
         "phaseout_limit_label": "Límite máximo deducible permitido por el ingreso total",
         "reduction_label": "Reducción aplicada",
-        "final_after_limit_label": "**Deducción final después de comparar la deducción con el maximo permitido**",
+        "final_after_limit_label": "**Deducción final después de comparar la deducción con el máximo permitido**",
 
         # Descarga PDF
+        "spinner_generating_pdf": "Generando reporte PDF...",
+        "download_button_now": "Descargar Reporte PDF Ahora",
         "download_section_title": "Descargar Reporte en PDF",
         "download_name_label": "Nombre completo (aparecerá en el reporte)",
         "download_name_placeholder": "Ej: Juan Pérez",
         "download_w2_options": ["1", "2", "3 o más"],
-        "download_docs_label": "Sube tus dofcumentos (W-2, paystubs, etc.) como evidencia (opcional, pero recomendado)",
+        "download_docs_label": "Sube tus documentos (W-2, paystubs, etc.) como evidencia (opcional, pero recomendado)",
         "download_docs_help": "Puedes subir uno o varios PDFs. Se agregarán al final del reporte.",
         "download_button": "Generar y Descargar Reporte PDF",
         "download_error_name": "Por favor, ingrese su nombre para generar el reporte.",
@@ -256,6 +266,8 @@ texts = {
         "pdf_results_title": "Resultados y Deducción Estimada",
         "pdf_evidence_title": "Documentos Adjuntos como Evidencia",
         "pdf_no_docs": "No se subieron documentos de evidencia.",
+        "pdf_docs_attached": "Se adjuntan {} documento(s) como evidencia.",
+        "pdf_final_deduction": "DEDUCCIÓN FINAL: {}",
         
         # Disclaimer
         "disclaimer_label": "DESCARGO DE RESPONSABILIDAD",
@@ -266,17 +278,23 @@ texts = {
                           "Siempre consulte a un contador o profesional de impuestos certificado antes de usar cualquier deducción en una declaración."
                           "Uso de esta herramienta es bajo su propia responsabilidad.",
         
-        # Theme colors:
-        "theme_modes": ["Modo Claro", "Modo Oscuro"]
+        # Language
+        "language_label": "🌐 Idioma",
+        "language_options": ["Español", "English"]
     }
 }
 
 # Idioma
 col_idioma, col_tema = st.columns([1, 1])  # o [2,1] si quieres más espacio para idioma
 
+if "language" not in st.session_state:
+    st.session_state.language = "es"
+    
+t = texts[st.session_state.language]
+
 language = st.selectbox(
-    "🌐 Idioma",
-    ["Español"],
+    t["language_label"],
+    t["language_options"],
     index=0,
     label_visibility="visible"
 )
@@ -284,8 +302,6 @@ if language == "Español":
     st.session_state.language = "es"
 else:
     st.session_state.language = "en"
-    
-t = texts[st.session_state.language]
 
 # ────────────────────────────────────────────────
 # ────────────────────────────────────────────────
@@ -483,8 +499,7 @@ if eligible:
         elif b_partial and not a_complete and not b_complete:
             error_msg = t["error_empty_option_b"]
         elif b_partial and a_complete:
-            error_msg = "Has intentado completar ambas opciones, pero aún falta completar la Opción B. Para continuar, por favor finaliza o elimina la información ingresada en la Opción B."
-
+            error_msg = t["error_partial_option_b_conflict"]
         if error_msg:
             st.session_state.calc_error = error_msg
             st.error(error_msg)
@@ -497,6 +512,8 @@ if eligible:
             ot_total_paid = 0.0
             ot_1_5_premium = 0.0
             ot_2_0_premium = 0.0
+            rate_1_5 = None
+            rate_2_0 = None
 
             # Opción B (prioridad si está completa)
             if b_complete:
@@ -515,8 +532,6 @@ if eligible:
                 ot_1_5_premium_a = calculate_ot_premium(ot_1_5_total, 1.5, "total")
                 ot_2_0_premium_a = calculate_ot_premium(ot_2_0_total, 2.0, "total")
                 qoc_gross_a = ot_1_5_premium_a + ot_2_0_premium_a
-                rate_1_5 = None
-                rate_2_0 = None
 
             # ────────────────────────────────────────────────
             # Decidir qué usar
@@ -565,7 +580,7 @@ if eligible:
                 total_deduction = min(qoc_gross, deduction_limit)
                 
                 if base_salary_est <= 0:
-                    error_msg = "Su ingreso total aproximado del año no puede ser menor que el total pagado por sus horas extras."
+                    error_msg = t["error_income_less_than_ot"]
                     st.session_state.calc_error = error_msg
                     st.error(error_msg)
                     
@@ -630,13 +645,16 @@ if eligible and st.session_state.show_results:
             st.metric(t["qoc_gross_label"], format_number(qoc_gross))
             st.metric(t["phaseout_limit_label"], format_number(deduction_limit))
             st.metric(t["final_after_limit_label"], format_number(total_deduction), delta_color="normal")
-    
+            
+    # ────────────────────────────────────────────────
+    # TABLA DE RESULTADOS
+    # ────────────────────────────────────────────────
     with tab_data:
         st.subheader(t["data_subtitle"])
         data = st.session_state.results
         data_summary = {
-            "Concepto": t["data_concepts"],
-            "Valor": [
+            t["data_column_concept"]: t["data_concepts"],
+            t["data_column_value"]: [
                 format_number(data["total_income"]),
                 format_number(data["base_salary_est"]),
                 format_number(data["ot_1_5_total"]),
@@ -676,7 +694,7 @@ if eligible and st.session_state.results:
         if not user_name.strip():
             st.error(t["download_error_name"])
         else:
-            with st.spinner("Generando reporte PDF..."):
+            with st.spinner(t["spinner_generating_pdf"]):
                 pdf = FPDF(format="A4")
                 pdf.set_auto_page_break(auto=True, margin=15)
                 pdf.set_margins(20, 20, 20)
@@ -799,7 +817,7 @@ if eligible and st.session_state.results:
                 pdf.ln(6)
                 pdf.set_font("Helvetica", "B", 13)
                 pdf.set_text_color(0, 102, 0)
-                pdf.multi_cell(0, 8, f"DEDUCCIÓN FINAL: {format_number(data['total_deduction'])}")
+                pdf.multi_cell(0, 8, t["pdf_final_deduction"].format_number(data["total_deduction"]))
                 pdf.set_text_color(0, 0, 0)
 
                 # ────────────────────────────────────────────────
@@ -809,7 +827,7 @@ if eligible and st.session_state.results:
                 section_title(t["pdf_evidence_title"])
 
                 if uploaded_files:
-                    body_text(f"Se adjuntan {len(uploaded_files)} documento(s) como evidencia.")
+                    body_text(t["pdf_docs_attached"].format(len(uploaded_files)))
                 else:
                     body_text(t["pdf_no_docs"])
 
@@ -833,7 +851,7 @@ if eligible and st.session_state.results:
                 final_bytes = final_io.getvalue()
 
                 st.download_button(
-                    label="Descargar Reporte PDF Ahora",
+                    label=t["download_button_now"],
                     data=final_bytes,
                     file_name=f"Reporte_Deduccion_Horas_Extras_{datetime.now().strftime('%Y%m%d')}.pdf",
                     mime="application/pdf",
