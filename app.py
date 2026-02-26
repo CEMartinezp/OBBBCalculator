@@ -11,7 +11,7 @@ from io import BytesIO
 # WEB TAB NAME AND LOGO
 # ────────────────────────────────────────────────
 st.set_page_config(
-    page_title="ZaiOT - Overtime Deduction Estimator",
+    page_title="ZaiOT - Overtime Deduction Calculator",
     # page_icon="💼",   # You can also use a local image path
     layout="wide",
     initial_sidebar_state="collapsed"
