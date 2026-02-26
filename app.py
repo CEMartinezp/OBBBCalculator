@@ -80,6 +80,9 @@ if "completed_step_3" not in st.session_state:
 
 if "pdf_bytes" not in st.session_state:
     st.session_state.pdf_bytes = None
+    
+if "reset_eligibility" not in st.session_state:
+    st.session_state.reset_eligibility = 0
 
 # ────────────────────────────────────────────────
 # TOP MAIN LOGO
@@ -184,192 +187,420 @@ def safe_line(txt):
     return txt
 
 # ────────────────────────────────────────────────
-# TEXTOS COMPLETOS – DICCIONARIO 100% COMPLETO Y ACTUALIZADO
+# TEXTOS EN DISPLAY
 # ────────────────────────────────────────────────
 texts = {
     "es": {
-        "title": "Calculadora de Deducción por Horas Extras (Ley OBBB 2025)",
-        "desc": "Cálculo de la deducción anual máxima de las horas extras calificadas (hasta $12,500 para individual  o $25,000 Casado presentando declaración  conjunta).",
-        "step1_title": "Paso 1: ¿Cumples con los requisitos básicos? (obligatorio)",
-        "over_40_label": "¿Te pagan horas extras por trabajar más de 40 horas a la semana?",
-        "ss_check_label": "¿Tiene un SSN válido para trabajar?",
-        "itin_check_label": "¿Tiene ITIN?",
-        "ot_1_5x_label": "¿La mayoría de tus horas extras se pagan a medio tiempo (1.5x la tarifa normal)?",
-        "unlock_message": "Según tus respuestas, es posible que no califiques para la deducción. Consulta con un contador antes de usar esta calculadora. Si aun deseas proseguir, haz click abajo para confirmar que calificas de todos modos",
-        "override_button": "Sí califico y quiero continuar de todos modos",
-        "override_success": "¡Genial! Has confirmado manualmente que calificas.",
-        "eligible_blocked_info": "**Las respuestas de elegibilidad están bloqueadas.** Si necesitas cambiarlas, usa el botón de abajo.",
-        "eligible_auto_success": "¡Excelente! Cumples los requisitos automáticamente.",
+        "title": "Calculadora de Deducción por Horas Extras Calificadas (Ley OBBB 2025)",
+        "desc": "Estimación de la deducción anual máxima aplicable a las horas extras calificadas (hasta $12,500 para declaración individual o $25,000 para declaración conjunta de casados).",
+        "step1_title": "Paso 1: Verificación de requisitos básicos (obligatorio)",
+        "step1_info": """
+            Complete las preguntas de este paso para verificar si cumple con los requisitos básicos de elegibilidad.
+            El sistema evaluará automáticamente las respuestas. Si no califica de forma automática,
+            podrá confirmar manualmente su elegibilidad para continuar.
+        """,
+        "over_40_label": "¿Se compensan las horas trabajadas por encima de 40 semanales con pago de horas extras?",
+        "ss_check_label": "¿El contribuyente posee un Número de Seguro Social (SSN) válido para trabajar?",
+        "itin_check_label": "¿El contribuyente posee un Número de Identificación Tributaria Individual (ITIN)?",
+        "ot_1_5x_label": "¿La mayoría de las horas extras se remuneran con una tarifa de tiempo y medio (1.5x la tarifa regular)?",
+        "unlock_message": "De acuerdo con las respuestas proporcionadas, es posible que no se cumplan los requisitos para aplicar la deducción. Se recomienda consultar con un contador profesional antes de continuar. Si el usuario está seguro de cumplir con los criterios, puede proceder haciendo clic en el botón a continuación para confirmar y continuar manualmente.",
+        "override_button": "Confirmo que cumplo los requisitos y deseo continuar",
+        "override_success": "Se ha confirmado manualmente el cumplimiento de los requisitos.",
+        "eligible_blocked_info": "**Las respuestas de elegibilidad se encuentran bloqueadas.** Para modificarlas, utilice el botón inferior.",
+        "eligible_auto_success": "Se verificó que se cumplen los requisitos básicos de forma automática.",
         "reiniciar_button": "🔄 Reiniciar respuestas de elegibilidad",
-        "step2_title": "Paso 2: Ingresa tus datos de ingresos y horas extras",
-        "magi_label": "Ingreso total aproximado del año (incluye horas extras, bonos, etc.) (\\$)",
-        "filing_status_label": "Estado civil al presentar impuestos",
-        "filing_status_options": ["Soltero", "Cabeza de Familia", "Casado presentando declaración conjunta", "Casado presentando declaración Separada"],
-        "calculate_button": "Calcular mi deducción estimada",
-        "results_title": "Tus resultados estimados",
-        "footer": "Actualizado en {date} \n Esta es solo una estimación – Consulta siempre a un profesional de impuestos",
-        "answer_options": ["Sí", "No", "No estoy seguro"],
+        "step2_title": "Paso 2: Ingreso de datos de ingresos y horas extras",
+        "step2_info": """
+            Ingrese su ingreso total aproximado del año (incluyendo todos los conceptos gravables).
+            Este dato es esencial para calcular la deducción máxima permitida según su nivel de ingresos.
+        """,
+        "magi_label": "Ingreso total aproximado del año (incluye salario base, horas extras, bonos, etc) ($)",
+        "filing_status_label": "Estado civil para efectos de la declaración de impuestos",
+        "filing_status_options": [
+            "Soltero(a)",
+            "Cabeza de familia",
+            "Casado(a) presentando declaración conjunta",
+            "Casado(a) presentando declaración por separado"
+        ],
+        "calculate_button": "Calcular deducción estimada",
+        "results_title": "Resultados estimados",
+        "footer": "Información actualizada al {date} \n Esta herramienta ofrece únicamente una estimación. Consulte siempre con un profesional de impuestos.",
+        "answer_options": ["Sí", "No", "No estoy seguro(a)"],
 
         # Ejemplo y pasos
         "example_text": """
-            Ejemplo:
-            - Si te pagaron \\$375 por 10 horas extras a 1.5x → usa **Opción A** y pon \\$375
-            - Si sabes que tu tarifa es \\$25/h y trabajaste 10 h extras → usa **Opción B**
+            Ejemplo ilustrativo:
+            - Tarifa regular: \\$25 por hora
+            - 10 horas extras remuneradas a tiempo y medio (1.5x)
+
+            Cálculo:
+            - Pago total recibido por esas horas: \\$375 (\\$25 × 1.5 × 10)
+            - De ese monto:
+              • \\$250 corresponden al salario base (\\$25 × 10)
+              • \\$125 corresponden al pago adicional por horas extras (monto deducible)
+
+            Opciones de ingreso:
+            - Opción A (más rápida): registrar \\$375 como monto total pagado por horas extras.
+            - Opción B (más precisa): indicar tarifa regular \\$25 + 10 horas a 1.5x.
         """,
-        "step3_title": "Paso 3: Elige cómo ingresar tus datos de horas extras",
+        "step2_completed_msg": "✅ Paso 2 completado. Puede continuar con el Paso 3.",
+        "step3_title": "Paso 3: Selección del método para ingresar datos de horas extras",
         "step3_info": """
-            **Selecciona una de las opciones y completa los campos que aparecen**
-            
-            - **Opción A** → Si solo tienes el **total pagado** por extras (lo ves en tus recibos o W-2). Es rápida y suficiente en la mayoría de casos.
-            - **Opción B** → Si tienes el **detalle exacto** (horas trabajadas + tu tarifa normal). Es más precisa, especialmente si hubo horas a doble tiempo.
-            
-            Solo necesitas completar una de las dos opciones.
+            **Seleccione el método más conveniente y complete los campos correspondientes:**
+
+            - **Opción A** — Ingreso por monto total recibido  
+              Recomendada cuando se dispone únicamente del importe total pagado por horas extras (visible en recibos de pago o formulario W-2). Método rápido y suficiente en la mayoría de los casos.
+
+            - **Opción B** — Ingreso por horas trabajadas y tarifa regular  
+              Recomendada cuando se cuenta con el detalle exacto de horas laboradas y la tarifa horaria normal. Proporciona mayor precisión, especialmente cuando existen horas remuneradas a doble tarifa.
+
+            **Nota:** Es necesario completar solamente uno de los dos métodos.
         """,
-        "choose_method_label": "¿Cómo deseas ingresar tus horas extras?",
+        "choose_method_label": "Seleccione el método para reportar las horas extras",
         "choose_method_options": [
-            "Tengo el monto total pagado (Opción A)",
-            "Tengo mis horas y tarifa (Opción B)"
+            "Dispongo del monto total pagado por horas extras (Opción A)",
+            "Dispongo del detalle de horas trabajadas y tarifa regular (Opción B)"
         ],
-                      
+
         # Opción A
-        "option_a_title": "**Opción A** (por monto total pagado)",
-        "ot_total_1_5_paid_label": "Monto TOTAL que te pagaron por horas extras este año a medio tiempo (\\$)",
-        "ot_total_1_5_paid_help": "Revisa tus recibos de pago o W-2. Suma **todo** lo recibido por trabajar horas extras a medio tiempo.",
-        "ot_total_2_0_paid_label": "Monto TOTAL que te pagaron por horas extras este año a doble tiempo (\\$)",
-        "ot_total_2_0_paid_help": "Revisa tus recibos de pago o W-2. Suma **todo** lo recibido por trabajar horas extras a doble tiempo.",
-        "ot_multiplier_options": ["1.5x (medio tiempo)", "2.0x (doble tiempo)"],
+        "option_a_title": "**Opción A** — Ingreso por monto total pagado",
+        "ot_total_1_5_paid_label": "Monto total recibido por horas extras a tiempo y medio durante el año ($)",
+        "ot_total_1_5_paid_help": "Sume todos los importes recibidos por concepto de horas extras remuneradas a tarifa de tiempo y medio, según recibos de pago o formulario W-2.",
+        "ot_total_2_0_paid_label": "Monto total recibido por horas extras a doble tarifa durante el año ($)",
+        "ot_total_2_0_paid_help": "Sume todos los importes recibidos por concepto de horas extras remuneradas al doble de la tarifa regular, según recibos de pago o formulario W-2.",
 
         # Opción B
-        "option_b_title": "**Opción B** (por horas trabajadas)",
-        "regular_rate_label": "Tarifa horaria normal (\\$ por hora)",
-        "regular_rate_help": "¿Cuánto te pagan normalmente por una hora, sin extras?",
-        "ot_hours_1_5_label": "Horas totales en el año pagadas a medio tiempo (1.5x) (número de horas)",
-        "ot_hours_1_5_help": "Suma de **todas** las horas extras que te pagaron a 1.5 veces durante el año.",
-        "dt_hours_2_0_label": "Horas totales en el año pagadas a doble tiempo (2.0x) (número de horas)",
-        "dt_hours_2_0_help": "Horas pagadas al doble (ej: fines de semana o turnos especiales).",
+        "option_b_title": "**Opción B** — Ingreso por horas trabajadas y tarifa regular",
+        "regular_rate_label": "Tarifa horaria regular ($ por hora)",
+        "regular_rate_help": "Indique el monto que se paga por hora de trabajo regular, sin incluir pagos adicionales por horas extras.",
+        "ot_hours_1_5_label": "Horas totales remuneradas a tiempo y medio durante el año (número de horas)",
+        "ot_hours_1_5_help": "Registre la suma total de horas extras remuneradas a tarifa de tiempo y medio (1.5x) durante el año.",
+        "dt_hours_2_0_label": "Horas totales remuneradas a doble tarifa durante el año (número de horas)",
+        "dt_hours_2_0_help": "Registre las horas remuneradas al doble de la tarifa regular (por ejemplo, fines de semana o turnos especiales).",
 
         # Mensajes de ayuda FLSA
-        "over_40_help": "¿Te pagan más cuando superas las 40 horas por semana? Eso es la regla principal.",
-        "ot_1_5x_help": "¿Casi todo su pago extra es 1.5 veces su tarifa normal? (ej: \\$30 en vez de \\$20). Si es doble en algunos días, igual puede contar.",
-        "ss_check_help": "Si no tienes un Social Security válido no puedes calificar para la deducción.",
-        "itin_check_help": "Si tiene un ITIN no califica para la deducción.",
+        "over_40_help": "Indique si las horas trabajadas por encima de 40 semanales generan un pago adicional por concepto de horas extras, conforme a la normativa laboral aplicable.",
+        "ot_1_5x_help": "Confirme si la mayor parte del pago adicional por horas extras corresponde a una tarifa de tiempo y medio (1.5x la tarifa regular).",
+        "ss_check_help": "La deducción requiere que el contribuyente posea un Número de Seguro Social válido para empleo.",
+        "itin_check_help": "La presencia de un ITIN en lugar de un SSN válido impide aplicar esta deducción.",
 
-        # Errores y métodos
-        "error_no_data": "⚠️ Completa al menos una de las opciones del **Paso 3** para calcular.",
-        "error_empty_option_a": "⚠️ Opción A está incompleta. Completa al menos una de las opciones para calcular",
-        "error_empty_option_b": "⚠️ Opción b está incompleta. Completa al menos una de las opciones para calcular",
-        "error_missing_total_income": "⚠️ Paso 2 está incompleto. Debes introducir su ingreso total aproximado del año para continuar.",
-        "error_partial_option_b_conflict": "Has intentado completar ambas opciones, pero aún falta completar la Opción B. Para continuar, por favor finaliza o elimina la información ingresada en la Opción B.",
-        "error_income_less_than_ot": "Su ingreso total aproximado del año no puede ser menor que el total pagado por sus horas extras.",
-        "error_option_a_b": "Completaste ambas opciones, pero los resultados **no coinciden**.\n\n"
-                            "Opción A → Pago adicional estimado: \\{}\n\n"
-                            "Opción B → Pago adicional estimado: \\{}",
-        "warning_option_a_b": "Revisa y corrige los valores para continuar.",
-        "warning_no_method_chosen": "Para continuar, debes escoger que metodo de calculo deseas utilizar",
+        # Errores y mensajes
+        "error_no_data": "⚠️ Debe completar al menos uno de los métodos del Paso 3 para realizar el cálculo.",
+        "error_empty_option_a": "⚠️ La Opción A está incompleta. Complete al menos uno de los montos para continuar.",
+        "error_empty_option_b": "⚠️ La Opción B está incompleta. Ingrese la tarifa regular y al menos una cantidad de horas.",
+        "error_missing_total_income": "⚠️ Debe ingresar el ingreso total aproximado del año para continuar.",
+        "error_partial_option_b_conflict": "Se detectó información parcial en la Opción B. Complete todos los campos o elimine los datos ingresados para continuar.",
+        "error_income_less_than_ot": "El ingreso total reportado parece ser inferior al monto total pagado por horas extras. Porfavor revise sus respuestas e intente denuevo",
+        "error_option_a_b": "Se ingresaron datos en ambas opciones, pero los resultados no coinciden.\n\n"
+                            "Opción A → Pago adicional estimado: {}\n"
+                            "Opción B → Pago adicional estimado: {}",
+        "warning_option_a_b": "Revise y corrija los valores ingresados para continuar.",
+        "warning_no_method_chosen": "Debe seleccionar un método de ingreso de horas extras para continuar.",
         "method_hours": "Por horas trabajadas (Opción B)",
-        "method_total": "Por monto total (Opción A)",
-        "method_a_and_b": "Opción A y Opción B",
-        
+        "method_total": "Por monto total pagado (Opción A)",
+        "method_a_and_b": "Ambas opciones (Opción A y B)",
+        "error_pdf_generation": "❌ Error generating PDF: {}",
 
         # Resumen de datos
-        "data_tab_title": "Resumen de tus datos",
-        "data_subtitle": "Basado en lo que ingresaste",
+        "data_tab_title": "Resumen de información ingresada",
+        "data_subtitle": "Información proporcionada por el usuario",
         "data_concepts": [
             "Ingreso total aproximado del año (base + extras)",
-            "Salario base estimado (ingreso total sin extras)",
-            "Total pagado por horas extras a medio tiempo (base + extra)",
-            "Total pagado por horas extras a doble tiempo (base + extra)",
-            "Total pagado por horas extras",
-            "Pago adicional 1.5x (deducible)",
-            "Pago adicional 2.0x (deducible)",
-            "Pago por hora por 1.5x",
-            "Pago por hora por 2.0x",
-            "Limite para la deduccion",
-            "Método usado",
-            "¿Le pagan horas extras por trabajar más de 40h/semana?",
-            "¿Las horas extras son principalmente 1.5x?",
-            "¿Estado civil al declarar impuestos?",
-            "¿Tiene un Social Security válido para trabajar?",
-            "¿Tiene ITIN?"
+            "Salario base estimado (ingreso total sin pago adicional por extras)",
+            "Total pagado por horas extras a tiempo y medio (base + extra)",
+            "Total pagado por horas extras a doble tarifa (base + extra)",
+            "Total pagado por concepto de horas extras",
+            "Pago adicional por horas extras a 1.5x (deducible)",
+            "Pago adicional por horas extras a 2.0x (deducible)",
+            "Tarifa horaria por horas extras a 1.5x",
+            "Tarifa horaria por horas extras a 2.0x",
+            "Límite máximo deducible según ingresos",
+            "Método de cálculo utilizado",
+            "¿Se compensan las horas por encima de 40 semanales con pago de horas extras?",
+            "¿La mayoría de las horas extras se pagan a tiempo y medio?",
+            "Estado civil para la declaración de impuestos",
+            "¿Posee un Número de Seguro Social válido para trabajar?",
+            "¿Posee un Número de Identificación Tributaria Individual (ITIN)?"
         ],
 
         # Resultados
         "data_column_concept": "Concepto",
         "data_column_value": "Valor",
-        "results_tab_title": "Resultados y deducción",
-        "total_deduction_label": "Deducción que vas a usar en la linea 14 del schedule 1a",
-        "total_deduction_delta": "Este es el monto final a restar de los impuestos",
-        "total_deduction_success": "Esta es la cantidad que puedes usar para linea 14 del schedule 1a. 💰",
-        "total_deduction_no_limit": "**Puedes deducir {}** por el monto adicional que ganaste en horas extras.",
-        "total_deduction_with_limit": "**Puedes deducir {}** por horas extras (limitado por el ingreso total).",
-        "limit_info": "El pago adicional por overtime fue de \\{}, pero según el ingreso total, el máximo que se puede deducir es \\{}. Por eso se reduce a esta cantidad.",
+        "results_tab_title": "Resultados y deducción estimada",
+        "total_deduction_label": "Deducción aplicable en la línea 14 del Schedule 1 (Formulario 1040)",
+        "total_deduction_delta": "Monto final a deducir de la base imponible",
+        "total_deduction_success": "Esta es la cantidad que puede utilizar en la línea 14 del Schedule 1. 💰",
+        "total_deduction_no_limit": "**Puede deducir {}** correspondiente al pago adicional por horas extras calificadas.",
+        "total_deduction_with_limit": "**Puede deducir {}** por concepto de horas extras (limitado por el nivel de ingresos).",
+        "limit_info": "El pago adicional por horas extras ascendió a {}, pero de acuerdo con el ingreso total, el monto máximo deducible es {}. Por ello se ajusta a esta cantidad.",
         "breakdown_subtitle": "Desglose detallado",
-        "qoc_gross_label": "Monto total ganado por horas extras",
-        "phaseout_limit_label": "Límite máximo deducible permitido por el ingreso total",
-        "reduction_label": "Reducción aplicada",
-        "final_after_limit_label": "**Deducción final después de comparar la deducción con el máximo permitido**",
+        "qoc_gross_label": "Monto total correspondiente al pago adicional por horas extras",
+        "phaseout_limit_label": "Límite máximo deducible según nivel de ingresos",
+        "reduction_label": "Reducción aplicada por phase-out",
+        "final_after_limit_label": "**Deducción final tras aplicar límite máximo permitido**",
 
         # Descarga PDF
         "spinner_generating_pdf": "Generando reporte PDF...",
-        "download_button_now": "Descargar Reporte PDF Ahora",
-        "download_section_title": "Descargar Reporte en PDF",
-        "download_name_label": "Nombre completo (aparecerá en el reporte)",
-        "download_name_placeholder": "Ej: Juan Pérez",
+        "generate_pdf": "Generar reporte PDF",
+        "generated_pdf_success": "Reporte generado exitosamente",
+        "generated_pdf_success_info": "El documento ya está listo. Puede descargarlo utilizando el botón inferior.",
+        "download_button_now": "Descargar Reporte PDF",
+        "download_section_title": "Generación y descarga del reporte",
+        "download_name_label": "Nombre completo del contribuyente (aparecerá en el reporte)",
+        "download_name_placeholder": "Ejemplo: Juan Pérez",
         "download_w2_options": ["1", "2", "3 o más"],
-        "download_docs_label": "Sube tus documentos (W-2, paystubs, etc.) como evidencia (opcional, pero recomendado)",
-        "download_docs_help": "Puedes subir uno o varios PDFs. Se agregarán al final del reporte.",
+        "download_docs_label": "Adjuntar documentos de respaldo (W-2, recibos de pago, etc.) – opcional pero recomendado",
+        "download_docs_help": "Puede cargar uno o varios archivos PDF. Estos se incorporarán al final del reporte generado.",
         "download_button": "Generar y Descargar Reporte PDF",
-        "download_error_name": "Por favor, ingrese su nombre para generar el reporte.",
-        "pdf_title": "Reporte de Deducción por Horas Extras - Ley OBBB 2025",
-        "pdf_generated_by": "Hecho con ZaiOT",
-        "pdf_date": "Fecha: {}",
+        "download_error_name": "Debe ingresar el nombre completo para generar el reporte.",
+        "pdf_title": "Reporte de Deducción por Horas Extras Calificadas – Ley OBBB 2025",
+        "pdf_generated_by": "Generado mediante ZaiOT",
+        "pdf_date": "Fecha de generación: {}",
         "pdf_user_name": "Nombre del contribuyente: {}",
-        "pdf_used_count": "Número de documentos utilizados: {}",
-        "pdf_summary_title": "Resumen de Datos Ingresados",
-        "pdf_results_title": "Resultados y Deducción Estimada",
-        "pdf_evidence_title": "Documentos Adjuntos como Evidencia",
-        "pdf_no_docs": "No se subieron documentos de evidencia.",
+        "pdf_used_count": "Cantidad de documentos adjuntos: {}",
+        "pdf_summary_title": "Resumen de información ingresada",
+        "pdf_results_title": "Resultados y deducción estimada",
+        "pdf_evidence_title": "Documentos adjuntos como evidencia",
+        "pdf_no_docs": "No se adjuntaron documentos de respaldo.",
         "pdf_docs_attached": "Se adjuntan {} documento(s) como evidencia.",
-        "pdf_final_deduction": "DEDUCCIÓN FINAL: {}",
-        
+        "pdf_final_deduction": "DEDUCCIÓN FINAL ESTIMADA: {}",
+
         # Disclaimer
-        "disclaimer_label": "DESCARGO DE RESPONSABILIDAD",
-        "disclaimer": "**Disclaimer:** Esta herramienta es solo para estimaciones informativas. No sustituye asesoría profesional de impuestos.\n"  
-                      "Consulte con un contador certificado antes de usar cualquier deducción en una declaración fiscal.",
-        "disclaimer_msg": "IMPORTANTE: Esta calculadora genera SOLO ESTIMACIONES APROXIMADAS de la deducción por horas extras según la Ley OBBB 2025."
-                          "NO es asesoría fiscal, legal ni contable. Los resultados pueden variar y NO garantizan aceptación por el IRS."
-                          "Siempre consulte a un contador o profesional de impuestos certificado antes de usar cualquier deducción en una declaración."
-                          "Uso de esta herramienta es bajo su propia responsabilidad.",
-        
+        "disclaimer_label": "AVISO LEGAL Y DESCARGO DE RESPONSABILIDAD",
+        "disclaimer": "**Descargo de responsabilidad:** Esta herramienta tiene únicamente fines informativos y de estimación. No constituye ni sustituye asesoría profesional en materia tributaria.",
+        "disclaimer_msg": "IMPORTANTE: Esta calculadora genera estimaciones aproximadas de la deducción por horas extras calificadas conforme a la Ley OBBB 2025. "
+                          "No representa asesoría fiscal, legal ni contable. Los resultados son orientativos y no garantizan su aceptación por parte del IRS. "
+                          "Se recomienda consultar con un contador público autorizado o profesional tributario certificado antes de incluir cualquier deducción en una declaración de impuestos. "
+                          "El uso de esta herramienta es bajo exclusiva responsabilidad del usuario.",
+
         # Language
         "language_label": "🌐 Idioma",
         "language_options": ["Español", "English"],
-        
+
         # Button Labels
         "button_continue": "Continuar"
+    },
+    
+    "en": {  # Versión en inglés
+        "title": "Qualified Overtime Deduction Calculator (OBBB Act 2025)",
+        "desc": "Estimate of the maximum annual deduction applicable to qualified overtime pay (up to $12,500 for single filers or $25,000 for married filing jointly).",
+        "step1_title": "Step 1: Basic Eligibility Check (required)",
+        "step1_info": """
+            Please answer the questions below to verify if you meet the basic eligibility requirements.
+            The system will automatically evaluate your responses. If you do not qualify automatically,
+            you will have the option to manually confirm your eligibility and continue.
+        """,
+        "over_40_label": "Are hours worked over 40 per week compensated with overtime pay?",
+        "ss_check_label": "Does the taxpayer have a valid Social Security Number (SSN) for employment?",
+        "itin_check_label": "Does the taxpayer have an Individual Taxpayer Identification Number (ITIN)?",
+        "ot_1_5x_label": "Are most overtime hours paid at time-and-a-half rate (1.5x the regular rate)?",
+        "unlock_message": "Based on the responses provided, it appears the requirements for this deduction may not be met. It is recommended to consult a tax professional before proceeding. If you are certain you meet the criteria, please click the button below to manually confirm and continue.",
+        "override_button": "I confirm I meet the requirements and wish to continue",
+        "override_success": "Manual confirmation of eligibility has been recorded.",
+        "eligible_blocked_info": "**Eligibility responses are currently locked.** To modify them, use the button below.",
+        "eligible_auto_success": "Basic eligibility requirements have been automatically verified.",
+        "reiniciar_button": "🔄 Reset eligibility responses",
+        "step2_title": "Step 2: Enter Income and Overtime Data",
+        "step2_info": """
+            Please enter your approximate total income for the year (including base salary, overtime, bonuses, and all other taxable income).
+            This information is essential to determine the maximum allowable deduction based on your income level.
+        """,
+        "magi_label": "Approximate total annual income (includes base salary, overtime, bonuses, etc.) ($)",
+        "filing_status_label": "Filing status for tax purposes",
+        "filing_status_options": [
+            "Single",
+            "Head of Household",
+            "Married Filing Jointly",
+            "Married Filing Separately"
+        ],
+        "calculate_button": "Calculate Estimated Deduction",
+        "results_title": "Estimated Results",
+        "footer": "Information updated as of {date} \n This tool provides an estimate only. Always consult a tax professional.",
+        "answer_options": ["Yes", "No", "Not sure"],
+
+        # Example and instructions
+        "example_text": """
+            Illustrative example:
+            - Regular rate: $25 per hour
+            - 10 overtime hours paid at time-and-a-half (1.5x)
+
+            Calculation:
+            - Total pay received for those hours: $375 ($25 × 1.5 × 10)
+            - Of that amount:
+              • $250 corresponds to base pay ($25 × 10)
+              • $125 corresponds to the overtime premium (deductible portion)
+
+            Input options:
+            - Option A (faster): enter $375 as total overtime pay received.
+            - Option B (more precise): enter regular rate $25 + 10 hours at 1.5x.
+        """,
+        "step2_completed_msg": "✅ Step 2 completed. You may proceed to Step 3.",
+        "step3_title": "Step 3: Select Method to Enter Overtime Data",
+        "step3_info": """
+            **Choose the most convenient method and complete the corresponding fields:**
+
+            - **Option A** — Enter total amount received  
+              Recommended when you only have the total overtime pay amount (shown on pay stubs or W-2). Quick and sufficient in most cases.
+
+            - **Option B** — Enter hours worked and regular rate  
+              Recommended when you have the exact breakdown of hours and regular hourly rate. Provides greater accuracy, especially if double-time hours were paid.
+
+            **Note:** You only need to complete one of the two methods.
+        """,
+        "choose_method_label": "Select the method for reporting overtime",
+        "choose_method_options": [
+            "I have the total amount paid for overtime (Option A)",
+            "I have the breakdown of hours worked and regular rate (Option B)"
+        ],
+
+        # Option A
+        "option_a_title": "**Option A** — Total amount paid",
+        "ot_total_1_5_paid_label": "Total amount received for time-and-a-half overtime during the year ($)",
+        "ot_total_1_5_paid_help": "Sum all amounts received for overtime paid at time-and-a-half rate, according to pay stubs or Form W-2.",
+        "ot_total_2_0_paid_label": "Total amount received for double-time overtime during the year ($)",
+        "ot_total_2_0_paid_help": "Sum all amounts received for overtime paid at double the regular rate, according to pay stubs or Form W-2.",
+
+        # Option B
+        "option_b_title": "**Option B** — Hours worked and regular rate",
+        "regular_rate_label": "Regular hourly rate ($ per hour)",
+        "regular_rate_help": "Enter the amount paid per hour for regular work, excluding any overtime premiums.",
+        "ot_hours_1_5_label": "Total hours paid at time-and-a-half during the year (number of hours)",
+        "ot_hours_1_5_help": "Enter the total number of overtime hours paid at 1.5x the regular rate during the year.",
+        "dt_hours_2_0_label": "Total hours paid at double time during the year (number of hours)",
+        "dt_hours_2_0_help": "Enter hours paid at double the regular rate (e.g., weekends or special shifts).",
+
+        # FLSA help messages
+        "over_40_help": "Indicate whether hours worked over 40 per week are compensated with overtime pay under applicable labor regulations.",
+        "ot_1_5x_help": "Confirm whether most overtime premium pay is at the time-and-a-half rate (1.5x regular rate).",
+        "ss_check_help": "This deduction requires the taxpayer to have a valid Social Security Number for employment.",
+        "itin_check_help": "Having an ITIN instead of a valid SSN prevents eligibility for this deduction.",
+
+        # Errors and messages
+        "error_no_data": "⚠️ You must complete at least one method in Step 3 to perform the calculation.",
+        "error_empty_option_a": "⚠️ Option A is incomplete. Please enter at least one amount to continue.",
+        "error_empty_option_b": "⚠️ Option B is incomplete. Please enter the regular rate and at least one hour amount.",
+        "error_missing_total_income": "⚠️ You must enter the approximate total annual income to continue.",
+        "error_partial_option_b_conflict": "Partial information detected in Option B. Please complete all fields or clear the data to continue.",
+        "error_income_less_than_ot": "The reported total income seems to be less than the total overtime pay amount. Please check your anwsers and try again.",
+        "error_option_a_b": "Data was entered in both options, but the results do not match.\n\n"
+                            "Option A → Estimated premium pay: {}\n"
+                            "Option B → Estimated premium pay: {}",
+        "warning_option_a_b": "Please review and correct the entered values to continue.",
+        "warning_no_method_chosen": "You must select a method for entering overtime data to continue.",
+        "method_hours": "By hours worked (Option B)",
+        "method_total": "By total amount paid (Option A)",
+        "method_a_and_b": "Both options (A and B)",
+        "error_pdf_generation": "❌ Error al general el PDF: {}",
+
+        # Data summary
+        "data_tab_title": "Summary of Entered Information",
+        "data_subtitle": "Information provided by the user",
+        "data_concepts": [
+            "Approximate total annual income (base + overtime)",
+            "Estimated base salary (total income excluding overtime premium)",
+            "Total paid for time-and-a-half overtime (base + premium)",
+            "Total paid for double-time overtime (base + premium)",
+            "Total paid for overtime",
+            "Overtime premium at 1.5x (deductible)",
+            "Overtime premium at 2.0x (deductible)",
+            "Hourly rate for 1.5x overtime",
+            "Hourly rate for 2.0x overtime",
+            "Maximum deductible limit based on income",
+            "Calculation method used",
+            "Are hours over 40 per week compensated with overtime pay?",
+            "Are most overtime hours paid at time-and-a-half?",
+            "Filing status for tax return",
+            "Has a valid Social Security Number for employment?",
+            "Has an Individual Taxpayer Identification Number (ITIN)?"
+        ],
+
+        # Results
+        "data_column_concept": "Concept",
+        "data_column_value": "Value",
+        "results_tab_title": "Results and Estimated Deduction",
+        "total_deduction_label": "Deduction applicable on line 14 of Schedule 1 (Form 1040)",
+        "total_deduction_delta": "Final amount to be deducted from taxable income",
+        "total_deduction_success": "This is the amount you can use on line 14 of Schedule 1. 💰",
+        "total_deduction_no_limit": "**You may deduct {}** corresponding to qualified overtime premium pay.",
+        "total_deduction_with_limit": "**You may deduct {}** for overtime (limited by income level).",
+        "limit_info": "The overtime premium amounted to {}, but based on total income, the maximum allowable deduction is {}. The amount has been adjusted accordingly.",
+        "breakdown_subtitle": "Detailed Breakdown",
+        "qoc_gross_label": "Total qualified overtime premium amount",
+        "phaseout_limit_label": "Maximum deductible limit based on income level",
+        "reduction_label": "Reduction due to phase-out",
+        "final_after_limit_label": "**Final deduction after applying maximum limit**",
+
+        # PDF Download
+        "spinner_generating_pdf": "Generating PDF report...",
+        "generate_pdf": "Generate PDF Report",
+        "generated_pdf_success": "Report generated successfully",
+        "generated_pdf_success_info": "The document is ready. You may now download the report below.",
+        "download_button_now": "Download PDF Report",
+        "download_section_title": "Report Generation and Download",
+        "download_name_label": "Taxpayer's full name (will appear on the report)",
+        "download_name_placeholder": "Example: John Pérez",
+        "download_w2_options": ["1", "2", "3 or more"],
+        "download_docs_label": "Attach supporting documents (W-2, pay stubs, etc.) – optional but recommended",
+        "download_docs_help": "You may upload one or more PDF files. They will be appended to the end of the generated report.",
+        "download_button": "Generate and Download PDF Report",
+        "download_error_name": "Please enter your full name to generate the report.",
+        "pdf_title": "Qualified Overtime Deduction Report – OBBB Act 2025",
+        "pdf_generated_by": "Generated via ZaiOT",
+        "pdf_date": "Generation date: {}",
+        "pdf_user_name": "Taxpayer name: {}",
+        "pdf_used_count": "Number of attached documents: {}",
+        "pdf_summary_title": "Summary of Entered Information",
+        "pdf_results_title": "Results and Estimated Deduction",
+        "pdf_evidence_title": "Supporting Documents Attached",
+        "pdf_no_docs": "No supporting documents were attached.",
+        "pdf_docs_attached": "{} document(s) attached as evidence.",
+        "pdf_final_deduction": "FINAL ESTIMATED DEDUCTION: {}",
+
+        # Disclaimer
+        "disclaimer_label": "LEGAL NOTICE AND DISCLAIMER",
+        "disclaimer": "**Disclaimer:** This tool is provided for informational and estimation purposes only. It does not constitute or replace professional tax advice.",
+        "disclaimer_msg": "IMPORTANT: This calculator generates approximate estimates of the qualified overtime deduction under the OBBB Act 2025. "
+                          "It is not tax, legal, or accounting advice. Results are for guidance only and do not guarantee acceptance by the IRS. "
+                          "It is strongly recommended to consult a certified public accountant or qualified tax professional before claiming any deduction on a tax return. "
+                          "Use of this tool is at the user's sole responsibility.",
+
+        # Language
+        "language_label": "🌐 Language",
+        "language_options": ["Spanish", "English"],
+
+        # Button Labels
+        "button_continue": "Continue"
     }
 }
-
 # Idioma
-col_idioma, col_tema = st.columns([1, 1])  # o [2,1] si quieres más espacio para idioma
 
+# Inicializamos idioma por defecto si no existe
 if "language" not in st.session_state:
     st.session_state.language = "es"
     
-texts["en"] = texts["es"]  # TODO: REMOVE ONECE ENGLISH DICT IS DEFINED
+# Mostramos el selector (usamos el valor actual de session_state)
+current_index = 0 if st.session_state.language == "es" else 1
+
+# Load dict to display correct words on language selection
 t = texts[st.session_state.language]
 
-language = st.selectbox(
+# Mostramos el selector
+lang_selected = st.selectbox(
     t["language_label"],
     t["language_options"],
-    index=0,
-    label_visibility="visible"
+    index=current_index,
+    label_visibility="visible",
+    key="global_language_selector",
 )
-if language == "Español":
-    st.session_state.language = "es"
-else:
-    st.session_state.language = "en"
+
+# Map selected option → language code using BOTH languages' option texts
+new_language = "es" if lang_selected in ("Español", "Spanish") else "en"
+
+if new_language != st.session_state.language:
+    st.session_state.language = new_language
+    st.rerun()
     
+# Cargamos los textos con el idioma actual
 t = texts[st.session_state.language]
 
 # ────────────────────────────────────────────────
@@ -402,12 +633,15 @@ eligible = st.session_state.eligible_override
 
 with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     
+    st.info(t["step1_info"])
+    
     filing_status = st.radio(
         t["filing_status_label"],
         t["filing_status_options"],
         index=None,
         horizontal=True,
         disabled=eligible,
+        key=f"filing_status_radio_{st.session_state.reset_eligibility}"
     )
     
     over_40 = st.radio(
@@ -416,7 +650,8 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=None,
         horizontal=True,
         disabled=eligible,
-        help=t["over_40_help"]
+        help=t["over_40_help"],
+        key=f"over_40_radio_{st.session_state.reset_eligibility}"
     )
     ot_1_5x = st.radio(
         t["ot_1_5x_label"],
@@ -424,7 +659,8 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=None,
         horizontal=True,
         disabled=eligible,
-        help=t["ot_1_5x_help"]
+        help=t["ot_1_5x_help"],
+        key=f"ot_1_5x_radio_{st.session_state.reset_eligibility}"
     )
     ss_check = st.radio(
         t["ss_check_label"],
@@ -432,7 +668,8 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=None,
         horizontal=True,
         disabled=eligible,
-        help=t["ss_check_help"]
+        help=t["ss_check_help"],
+        key=f"ss_check_radio_{st.session_state.reset_eligibility}"
     )
     itin_check = st.radio(
         t["itin_check_label"],
@@ -440,8 +677,17 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         index=None,
         horizontal=True,
         disabled=eligible,
-        help=t["itin_check_help"]
+        help=t["itin_check_help"],
+        key=f"itin_check_radio_{st.session_state.reset_eligibility}"
     )
+    
+    partial_responses = (
+        filing_status == None or 
+        over_40 == None or 
+        ot_1_5x == None or
+        ss_check == None or
+        itin_check == None
+    )   
 
     auto_eligible = (
         filing_status != t["filing_status_options"][3] and 
@@ -450,7 +696,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         ss_check == t["answer_options"][0] and
         itin_check == t["answer_options"][1]
     )
-
+    
     eligible = auto_eligible or st.session_state.eligible_override
 
     if eligible:
@@ -463,10 +709,12 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         
         if st.button(t["reiniciar_button"], type="secondary", width='stretch'):
             st.session_state.eligible_override = False
+            st.session_state.reset_eligibility += 1
             st.rerun()
-    else:
+            
+    elif not partial_responses:
         st.warning(t["unlock_message"])
-        if st.button(t["override_button"], width='stretch'):
+        if st.button(t["override_button"], width='stretch', type="secondary"):
             st.session_state.eligible_override = True
             st.rerun()
 
@@ -475,6 +723,8 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
 # ────────────────────────────────────────────────
 if eligible:
     with st.expander(f"### {t['step2_title']}", expanded=True):
+        st.info(t["step2_info"])
+        
         total_income = pretty_money_input(
             t["magi_label"],
             value=0.0,
@@ -494,7 +744,7 @@ if eligible:
 
         # Si ya se completó, mostramos un mensaje de confirmación (opcional pero mejora UX)
         if st.session_state.completed_step_2:
-            st.success("✅ Paso 2 completado. Puedes continuar con el Paso 3.")
+            st.success(t["step2_completed_msg"])
 
         # Bloquea el avance si no se completó (ya lo tienes)
         if not st.session_state.completed_step_2:
@@ -519,7 +769,7 @@ if eligible:
             horizontal=True
         )
         
-        st.caption(t["example_text"])
+        # st.caption(t["example_text"])
         
         if not method_choice:
             st.warning(t["warning_no_method_chosen"])
@@ -572,8 +822,6 @@ if eligible:
                     lang=st.session_state.language,
                     currency=" "
                 )
-                
-    # https://chatgpt.com/c/699e5eff-9100-832d-ae47-117625dfa603
             
     # ────────────────────────────────────────────────
     # Boton de Calcular
@@ -701,7 +949,7 @@ if eligible and st.session_state.show_results:
             st.success(t["total_deduction_no_limit"].format(format_number(total_deduction)))
         else:
             st.warning(t["total_deduction_with_limit"].format(format_number(total_deduction)))
-            st.info(t["limit_info"].format(format_number(qoc_gross), format_number(deduction_limit)))
+            st.info(t["limit_info"].format(f"\\{format_number(qoc_gross)}", f"\\{format_number(deduction_limit)}"))
 
         st.markdown("---")
 
@@ -754,22 +1002,27 @@ if eligible and st.session_state.show_results:
 # DESCARGA DE REPORTE PDF – CORRECTED VERSION
 # ────────────────────────────────────────────────
 def build_final_pdf(user_name, uploaded_files, num_docs, results):
-
+    import os
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_margins(20, 20, 20)
+
+    # ── Register Unicode fonts ──
+    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf")
+    pdf.add_font("DejaVu", "B", "fonts/DejaVuSans-Bold.ttf")
+
     pdf.add_page()
 
     def section_title(text):
         pdf.ln(6)
-        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_font("DejaVu", "B", 13)        # ← changed
         pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
         pdf.set_draw_color(200, 200, 200)
         pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
         pdf.ln(4)
 
     def body_text(text, size=11):
-        pdf.set_font("Helvetica", "", size)
+        pdf.set_font("DejaVu", "", size)        # ← changed
         pdf.multi_cell(0, 6, text)
         pdf.ln(2)
 
@@ -777,26 +1030,20 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results):
         x_start = pdf.get_x()
         y_start = pdf.get_y()
 
-        # Label
-        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_font("DejaVu", "B", 11)        # ← changed
         pdf.multi_cell(label_width, line_height, label, border=0)
-
-        # Save where label ended vertically
         y_after_label = pdf.get_y()
 
-        # Move to the right of label (same starting Y)
         pdf.set_xy(x_start + label_width, y_start)
 
-        # Value
-        pdf.set_font("Helvetica", "", 11)
+        pdf.set_font("DejaVu", "", 11)          # ← changed
         pdf.multi_cell(0, line_height, value)
 
-        # Move cursor to max Y reached
         y_after_value = pdf.get_y()
         pdf.set_y(max(y_after_label, y_after_value))
 
     # DISCLAIMER
-    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_font("DejaVu", "B", 15)            # ← changed
     pdf.cell(0, 10, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(6)
     body_text(t["disclaimer_msg"], size=11)
@@ -804,24 +1051,22 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results):
     pdf.add_page()
 
     # HEADER
-    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_font("DejaVu", "B", 16)            # ← changed
     pdf.cell(0, 10, t["pdf_title"], new_x="LMARGIN", new_y="NEXT", align="C")
 
-    pdf.set_font("Helvetica", "", 11)
+    pdf.set_font("DejaVu", "", 11)              # ← changed
     pdf.cell(0, 6, t["pdf_generated_by"], new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.cell(
-        0,
-        6,
+        0, 6,
         t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
-        new_x="LMARGIN",
-        new_y="NEXT",
-        align="C"
+        new_x="LMARGIN", new_y="NEXT", align="C"
     )
 
     pdf.ln(10)
 
     key_value(t["pdf_user_name"].replace("{}", ""), user_name, label_width=70)
     key_value(t["pdf_used_count"].replace("{}", ""), str(num_docs), label_width=70)
+
 
     # ────────────────────────────────────────────────
     # DATA SUMMARY
@@ -862,7 +1107,7 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results):
 
     # Highlight final deduction
     pdf.ln(6)
-    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_font("DejaVu", "B", 13)            # ← changed
     pdf.set_text_color(0, 102, 0)
     pdf.multi_cell(0, 8, t["pdf_final_deduction"].format(format_number(results["total_deduction"])))
     pdf.set_text_color(0, 0, 0)
@@ -920,9 +1165,9 @@ if eligible and st.session_state.results:
     with col_gen:
         # Botón GENERAR (solo aparece si NO se ha generado aún)
         if st.session_state.pdf_bytes is None:
-            if st.button("Generar Reporte PDF", type="primary", disabled=not user_name.strip(), width="stretch"):
+            if st.button(t["generate_pdf"], type="primary", disabled=not user_name.strip(), width="stretch"):
                 if not user_name.strip():
-                    st.error("Por favor ingresa tu nombre completo")
+                    st.error("pdf_missing_name")
                 else:
                     with st.spinner(t["spinner_generating_pdf"]):
                         try:
@@ -933,17 +1178,16 @@ if eligible and st.session_state.results:
                                 results=st.session_state.results
                             )
                             st.session_state.pdf_bytes = pdf_bytes
-                            st.success("¡Reporte generado correctamente!")
-                            st.info("Ahora puedes descargar el reporte abajo ↓")
                             st.rerun()  # importante para que desaparezca el botón Generar
                         except Exception as e:
-                            st.error(f"Error al generar el PDF: {str(e)}")
-                            st.info("Por favor intenta de nuevo o verifica los datos.")
+                            st.error(t["error_pdf_generation"].format(str(e)))
 
         # Botón DESCARGAR (solo aparece DESPUÉS de generar)
         if st.session_state.pdf_bytes is not None:
+            st.success(t["generated_pdf_success"])
+            st.info(t["generated_pdf_success_info"])
             st.download_button(
-                label="Descargar Reporte PDF Ahora",
+                label=t["download_button_now"],
                 data=st.session_state.pdf_bytes,
                 file_name=f"ZaiOT_Reporte_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
