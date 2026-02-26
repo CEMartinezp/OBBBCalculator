@@ -163,7 +163,7 @@ def pretty_money_input(
 
     return num
 
-def format_number(value: float, lang:str="es", currency="$", decimals=2) -> str:
+def format_number(value: float, lang: str, currency="$", decimals=2) -> str:
     if value is None:
         return f"{currency}0"
     
@@ -354,8 +354,8 @@ texts = {
         "download_button": "Generar y Descargar Reporte PDF",
         "download_error_name": "Debe ingresar el nombre completo para generar el reporte.",
         "pdf_title": "Reporte de Deducción por Horas Extras Calificadas – Ley OBBB 2025",
-        "pdf_generated_by": "Generado mediante ZaiOT",
-        "pdf_date": "Fecha de generación: {}",
+        "pdf_generated_by": "Hecho por ZaiOT",
+        "pdf_date": "Fecha: {}",
         "pdf_user_name": "Nombre del contribuyente: {}",
         "pdf_used_count": "Cantidad de documentos adjuntos: {}",
         "pdf_summary_title": "Resumen de información ingresada",
@@ -545,8 +545,8 @@ texts = {
         "download_button": "Generate and Download PDF Report",
         "download_error_name": "Please enter your full name to generate the report.",
         "pdf_title": "Qualified Overtime Deduction Report – OBBB Act 2025",
-        "pdf_generated_by": "Generated via ZaiOT",
-        "pdf_date": "Generation date: {}",
+        "pdf_generated_by": "Made by ZaiOT",
+        "pdf_date": "Date: {}",
         "pdf_user_name": "Taxpayer name: {}",
         "pdf_used_count": "Number of attached documents: {}",
         "pdf_summary_title": "Summary of Entered Information",
@@ -946,10 +946,10 @@ if eligible and st.session_state.show_results:
         total_deduction = data["total_deduction"]
 
         if qoc_gross <= deduction_limit:
-            st.success(t["total_deduction_no_limit"].format(format_number(total_deduction)))
+            st.success(t["total_deduction_no_limit"].format(format_number(total_deduction, st.session_state.language)))
         else:
-            st.warning(t["total_deduction_with_limit"].format(format_number(total_deduction)))
-            st.info(t["limit_info"].format(f"\\{format_number(qoc_gross)}", f"\\{format_number(deduction_limit)}"))
+            st.warning(t["total_deduction_with_limit"].format(format_number(total_deduction, st.session_state.language)))
+            st.info(t["limit_info"].format(f"\\{format_number(qoc_gross, st.session_state.language)}", f"\\{format_number(deduction_limit, st.session_state.language)}"))
 
         st.markdown("---")
 
@@ -958,16 +958,16 @@ if eligible and st.session_state.show_results:
         with col_left_res:
             st.metric(
                 label=t["total_deduction_label"],
-                value=format_number(total_deduction),
+                value=format_number(total_deduction, st.session_state.language),
                 delta=t["total_deduction_delta"]
             )
             st.success(t["total_deduction_success"])
 
         with col_right_res:
             st.subheader(t["breakdown_subtitle"])
-            st.metric(t["qoc_gross_label"], format_number(qoc_gross))
-            st.metric(t["phaseout_limit_label"], format_number(deduction_limit))
-            st.metric(t["final_after_limit_label"], format_number(total_deduction), delta_color="normal")
+            st.metric(t["qoc_gross_label"], format_number(qoc_gross, st.session_state.language))
+            st.metric(t["phaseout_limit_label"], format_number(deduction_limit, st.session_state.language))
+            st.metric(t["final_after_limit_label"], format_number(total_deduction, st.session_state.language), delta_color="normal")
             
     # ────────────────────────────────────────────────
     # TABLA DE RESULTADOS
@@ -978,16 +978,16 @@ if eligible and st.session_state.show_results:
         data_summary = {
             t["data_column_concept"]: t["data_concepts"],
             t["data_column_value"]: [
-                format_number(data["total_income"]),
-                format_number(data["base_salary"]),
-                format_number(data["ot_1_5_total"]),
-                "--" if not data["ot_2_0_total"] else format_number(data["ot_2_0_total"]),
-                format_number(data["ot_total_paid"]),
-                format_number(data["ot_1_5_premium"]),
-                "--" if not data["ot_2_0_premium"] else format_number(data["ot_2_0_premium"]),
-                "--" if not data["rate_1_5"] else format_number(data["rate_1_5"]),
-                "--" if not data["rate_2_0"] else format_number(data["rate_2_0"]),
-                format_number(data['deduction_limit']),
+                format_number(data["total_income"], st.session_state.language),
+                format_number(data["base_salary"], st.session_state.language),
+                format_number(data["ot_1_5_total"], st.session_state.language),
+                "--" if not data["ot_2_0_total"] else format_number(data["ot_2_0_total"], st.session_state.language),
+                format_number(data["ot_total_paid"], st.session_state.language),
+                format_number(data["ot_1_5_premium"], st.session_state.language),
+                "--" if not data["ot_2_0_premium"] else format_number(data["ot_2_0_premium"], st.session_state.language),
+                "--" if not data["rate_1_5"] else format_number(data["rate_1_5"], st.session_state.language),
+                "--" if not data["rate_2_0"] else format_number(data["rate_2_0"], st.session_state.language),
+                format_number(data['deduction_limit'], st.session_state.language),
                 data["method_used"],
                 "--" if not data["over_40"] else data["over_40"],
                 "--" if not data["ot_1_5x"] else data["ot_1_5x"],
@@ -1001,134 +1001,207 @@ if eligible and st.session_state.show_results:
 # ────────────────────────────────────────────────
 # DESCARGA DE REPORTE PDF – CORRECTED VERSION
 # ────────────────────────────────────────────────
-def build_final_pdf(user_name, uploaded_files, num_docs, results):
+def build_final_pdf(user_name, uploaded_files, num_docs, results, lang):
     import os
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    font_regular = os.path.join(BASE_DIR, "fonts", "DejaVuSans.ttf")
+    font_bold    = os.path.join(BASE_DIR, "fonts", "DejaVuSans-Bold.ttf")
+
+    # ── Page setup ──
     pdf = FPDF(format="A4")
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.set_margins(20, 20, 20)
 
-    # ── Register Unicode fonts ──
-    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf")
-    pdf.add_font("DejaVu", "B", "fonts/DejaVuSans-Bold.ttf")
+    pdf.add_font("DejaVu", "",  font_regular)
+    pdf.add_font("DejaVu", "B", font_bold)
+    pdf.set_font("DejaVu", "", 11)
 
-    pdf.add_page()
+    USABLE_W  = 170
+    LABEL_W   = 120
+    VALUE_W   = 50
+    ROW_H     = 7
+    ALT_COLOR = (245, 245, 245)
+    INDENT    = 2   # mm padding instead of space characters
+
+    # ── Helpers ──────────────────────────────────────────────────────────────
 
     def section_title(text):
-        pdf.ln(6)
-        pdf.set_font("DejaVu", "B", 13)        # ← changed
-        pdf.cell(0, 8, text, new_x="LMARGIN", new_y="NEXT")
-        pdf.set_draw_color(200, 200, 200)
-        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-        pdf.ln(4)
-
-    def body_text(text, size=11):
-        pdf.set_font("DejaVu", "", size)        # ← changed
-        pdf.multi_cell(0, 6, text)
+        pdf.ln(8)
+        pdf.set_fill_color(30, 100, 200)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("DejaVu", "B", 12)
+        pdf.set_x(pdf.l_margin + INDENT)
+        pdf.cell(USABLE_W - INDENT, 9, text, new_x="LMARGIN", new_y="NEXT", fill=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("DejaVu", "", 11)
         pdf.ln(2)
 
-    def key_value(label, value, label_width=120, line_height=6):
-        x_start = pdf.get_x()
-        y_start = pdf.get_y()
+    def table_row(label, value, row_index=0):
+        x = pdf.get_x()
+        y = pdf.get_y()
 
-        pdf.set_font("DejaVu", "B", 11)        # ← changed
-        pdf.multi_cell(label_width, line_height, label, border=0)
+        # Estimate row height based on label length
+        avg_char_w = pdf.get_string_width("a")
+        chars_per_line = int((LABEL_W - INDENT) / max(avg_char_w, 1))
+        lines_needed = max(1, -(-len(label) // chars_per_line))  # ceiling div
+        row_height = max(ROW_H, lines_needed * ROW_H)
+
+        # Draw alternating background
+        pdf.set_fill_color(*(ALT_COLOR if row_index % 2 == 0 else (255, 255, 255)))
+        pdf.rect(x, y, USABLE_W, row_height, style="F")
+
+        # Label (bold, with precise indent)
+        pdf.set_font("DejaVu", "B", 10)
+        pdf.set_xy(x + INDENT, y)
+        pdf.multi_cell(LABEL_W - INDENT, ROW_H, label, border=0)
+
+        # Value (regular, right-aligned)
+        pdf.set_font("DejaVu", "", 10)
+        pdf.set_xy(x + LABEL_W, y)
+        pdf.multi_cell(VALUE_W, ROW_H, value, border=0, align="R")
+
+        pdf.set_xy(x, y + row_height)
+
+    def header_row(col1, col2):
+        pdf.set_fill_color(50, 50, 50)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("DejaVu", "B", 10)
+        x = pdf.get_x()
+        y = pdf.get_y()
+        pdf.set_xy(x + INDENT, y)
+        pdf.multi_cell(LABEL_W - INDENT, ROW_H + 1, col1, fill=True, border=0)
+        pdf.set_xy(x + LABEL_W, y)
+        pdf.multi_cell(VALUE_W, ROW_H + 1, col2, fill=True, border=0, align="R",
+                       new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("DejaVu", "", 10)
+
+    def body_text(text, size=10):
+        pdf.set_font("DejaVu", "", size)
+        pdf.multi_cell(USABLE_W, 6, text)
+        pdf.ln(2)
+
+    def kv_simple(label, value, label_w=70):
+        x = pdf.get_x()
+        y = pdf.get_y()
+        pdf.set_font("DejaVu", "B", 11)
+        pdf.multi_cell(label_w, 7, label, border=0)
         y_after_label = pdf.get_y()
+        pdf.set_xy(x + label_w, y)
+        pdf.set_font("DejaVu", "", 11)
+        pdf.multi_cell(USABLE_W - label_w, 7, value, border=0)
+        pdf.set_y(max(y_after_label, pdf.get_y()))
 
-        pdf.set_xy(x_start + label_width, y_start)
-
-        pdf.set_font("DejaVu", "", 11)          # ← changed
-        pdf.multi_cell(0, line_height, value)
-
-        y_after_value = pdf.get_y()
-        pdf.set_y(max(y_after_label, y_after_value))
-
-    # DISCLAIMER
-    pdf.set_font("DejaVu", "B", 15)            # ← changed
-    pdf.cell(0, 10, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.ln(6)
-    body_text(t["disclaimer_msg"], size=11)
-
+    # ── PAGE 1 — DISCLAIMER ──────────────────────────────────────────────────
     pdf.add_page()
 
-    # HEADER
-    pdf.set_font("DejaVu", "B", 16)            # ← changed
-    pdf.cell(0, 10, t["pdf_title"], new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.set_fill_color(200, 30, 30)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("DejaVu", "B", 14)
+    pdf.set_x(pdf.l_margin + INDENT)
+    pdf.cell(USABLE_W - INDENT, 12, t["disclaimer_label"],
+             new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(6)
+    body_text(t["disclaimer_msg"])
 
-    pdf.set_font("DejaVu", "", 11)              # ← changed
-    pdf.cell(0, 6, t["pdf_generated_by"], new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.cell(
-        0, 6,
-        t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
-        new_x="LMARGIN", new_y="NEXT", align="C"
-    )
+    # ── PAGE 2 — REPORT ──────────────────────────────────────────────────────
+    pdf.add_page()
 
-    pdf.ln(10)
+    # Title block
+    pdf.set_fill_color(30, 100, 200)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("DejaVu", "B", 15)
+    pdf.multi_cell(USABLE_W, 11, t["pdf_title"], align="C", fill=True,
+                   new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(3)
 
-    key_value(t["pdf_user_name"].replace("{}", ""), user_name, label_width=70)
-    key_value(t["pdf_used_count"].replace("{}", ""), str(num_docs), label_width=70)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.cell(USABLE_W, 6, t["pdf_generated_by"], align="C",
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(USABLE_W, 6,
+             t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
+             align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(6)
 
+    # Taxpayer info box — measure first, draw background, then render text on top
+    info_y = pdf.get_y()
+    pdf.set_font("DejaVu", "B", 11)
+    kv_simple(t["pdf_user_name"].replace("{}", "").strip(),  user_name)
+    kv_simple(t["pdf_used_count"].replace("{}", "").strip(), str(num_docs))
+    info_bottom = pdf.get_y()
 
-    # ────────────────────────────────────────────────
-    # DATA SUMMARY
-    # ────────────────────────────────────────────────
+    # Re-render with background
+    pdf.set_y(info_y)
+    pdf.set_fill_color(240, 244, 255)
+    pdf.rect(pdf.get_x(), info_y, USABLE_W, info_bottom - info_y + 3, style="F")
+    kv_simple(t["pdf_user_name"].replace("{}", "").strip(),  user_name)
+    kv_simple(t["pdf_used_count"].replace("{}", "").strip(), str(num_docs))
+    pdf.ln(4)
+
+    # ── DATA SUMMARY TABLE ───────────────────────────────────────────────────
     section_title(t["pdf_summary_title"])
+    header_row(t["data_column_concept"], t["data_column_value"])
 
     summary_items = [
-        (t["data_concepts"][0], format_number(results["total_income"])),
-        (t["data_concepts"][1], format_number(results["base_salary"])),
-        (t["data_concepts"][2], format_number(results["ot_1_5_total"])),
-        (t["data_concepts"][3], format_number(results["ot_2_0_total"])),
-        (t["data_concepts"][4], format_number(results["ot_total_paid"])),
-        (t["data_concepts"][5], format_number(results["ot_1_5_premium"])),
-        (t["data_concepts"][6], format_number(results["ot_2_0_premium"])),
-        (t["data_concepts"][7], format_number(results["rate_1_5"])),
-        (t["data_concepts"][8], format_number(results["rate_2_0"])),
-        (t["data_concepts"][9], format_number(results["deduction_limit"])),
+        (t["data_concepts"][0],  format_number(results["total_income"],    lang=lang)),
+        (t["data_concepts"][1],  format_number(results["base_salary"],     lang=lang)),
+        (t["data_concepts"][2],  format_number(results["ot_1_5_total"],    lang=lang)),
+        (t["data_concepts"][3],  format_number(results["ot_2_0_total"],    lang=lang)),
+        (t["data_concepts"][4],  format_number(results["ot_total_paid"],   lang=lang)),
+        (t["data_concepts"][5],  format_number(results["ot_1_5_premium"],  lang=lang)),
+        (t["data_concepts"][6],  format_number(results["ot_2_0_premium"],  lang=lang)),
+        (t["data_concepts"][7],  format_number(results["rate_1_5"],        lang=lang)),
+        (t["data_concepts"][8],  format_number(results["rate_2_0"],        lang=lang)),
+        (t["data_concepts"][9],  format_number(results["deduction_limit"], lang=lang)),
         (t["data_concepts"][10], results["method_used"]),
         (t["data_concepts"][11], results["over_40"]),
         (t["data_concepts"][12], results["ot_1_5x"]),
         (t["data_concepts"][13], results["filing_status"]),
         (t["data_concepts"][14], results["ss_check"]),
         (t["data_concepts"][15], results["itin_check"]),
-    ]                  
+    ]
 
-    for label, value in summary_items:
-        key_value(label + ":", value)
+    for i, (label, value) in enumerate(summary_items):
+        table_row(label, value, row_index=i)
 
-    # ────────────────────────────────────────────────
-    # RESULTS SECTION
-    # ────────────────────────────────────────────────
-
+    # ── RESULTS TABLE ────────────────────────────────────────────────────────
     section_title(t["pdf_results_title"])
+    header_row(t["data_column_concept"], t["data_column_value"])
 
-    key_value(t["total_deduction_label"] + ":", format_number(results["total_deduction"]))
-    key_value(t["qoc_gross_label"] + ":", format_number(results["qoc_gross"]))
-    key_value(t["phaseout_limit_label"] + ":", format_number(results["deduction_limit"]))
+    results_items = [
+        (t["qoc_gross_label"],       format_number(results["qoc_gross"],       lang=lang)),
+        (t["phaseout_limit_label"],  format_number(results["deduction_limit"], lang=lang)),
+        (t["total_deduction_label"], format_number(results["total_deduction"], lang=lang)),
+    ]
+    for i, (label, value) in enumerate(results_items):
+        table_row(label, value, row_index=i)
 
-    # Highlight final deduction
-    pdf.ln(6)
-    pdf.set_font("DejaVu", "B", 13)            # ← changed
-    pdf.set_text_color(0, 102, 0)
-    pdf.multi_cell(0, 8, t["pdf_final_deduction"].format(format_number(results["total_deduction"])))
+    # Final deduction highlight box
+    pdf.ln(8)
+    pdf.set_fill_color(0, 140, 60)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("DejaVu", "B", 13)
+    pdf.set_x(pdf.l_margin + INDENT)
+    pdf.multi_cell(
+        USABLE_W - INDENT, 13,
+        t["pdf_final_deduction"].format(format_number(results["total_deduction"], lang=lang)),
+        fill=True, new_x="LMARGIN", new_y="NEXT"
+    )
     pdf.set_text_color(0, 0, 0)
+    pdf.set_font("DejaVu", "", 11)
 
-    # ────────────────────────────────────────────────
-    # EVIDENCE SECTION
-    # ────────────────────────────────────────────────
-
+    # ── EVIDENCE SECTION ─────────────────────────────────────────────────────
     section_title(t["pdf_evidence_title"])
-
     if uploaded_files:
         body_text(t["pdf_docs_attached"].format(len(uploaded_files)))
     else:
         body_text(t["pdf_no_docs"])
 
-    # ────────────────────────────────────────────────
-    # GENERATE FINAL PDF
-    # ────────────────────────────────────────────────
-
+    # ── MERGE WITH ATTACHMENTS ───────────────────────────────────────────────
     pdf_bytes = pdf.output()
-
     merger = PdfMerger()
     merger.append(BytesIO(pdf_bytes))
 
@@ -1175,7 +1248,8 @@ if eligible and st.session_state.results:
                                 user_name=user_name,
                                 uploaded_files=uploaded_files,
                                 num_docs=num_docs,
-                                results=st.session_state.results
+                                results=st.session_state.results,
+                                lang=st.session_state.language
                             )
                             st.session_state.pdf_bytes = pdf_bytes
                             st.rerun()  # importante para que desaparezca el botón Generar
