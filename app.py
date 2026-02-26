@@ -822,7 +822,7 @@ if eligible:
                     lang=st.session_state.language,
                     currency=" "
                 )
-            
+
     # ────────────────────────────────────────────────
     # Boton de Calcular
     # ────────────────────────────────────────────────
@@ -997,6 +997,8 @@ if eligible and st.session_state.show_results:
             ]
         }
         st.dataframe(pd.DataFrame(data_summary), width='stretch')
+        
+    # TODO: JONAS
 
 # ────────────────────────────────────────────────
 # DESCARGA DE REPORTE PDF – CORRECTED VERSION
@@ -1216,6 +1218,7 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results, lang):
     return final_io.getvalue()
 
 if eligible and st.session_state.results:
+    
     st.subheader(t["download_section_title"])
 
     user_name = st.text_input(
