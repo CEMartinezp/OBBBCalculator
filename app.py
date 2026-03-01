@@ -1112,116 +1112,149 @@ if eligible and st.session_state.show_results:
 # ─────────────────────────────────────────────────────────────
 def build_final_pdf(user_name, uploaded_files, num_docs, results, lang):
     import os
-    BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-    font_reg   = os.path.join(BASE_DIR, "fonts", "DejaVuSans.ttf")
-    font_bold  = os.path.join(BASE_DIR, "fonts", "DejaVuSans-Bold.ttf")
+    BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+    font_reg  = os.path.join(BASE_DIR, "fonts", "DejaVuSans.ttf")
+    font_bold = os.path.join(BASE_DIR, "fonts", "DejaVuSans-Bold.ttf")
 
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.set_margins(20, 20, 20)
     pdf.add_font("DejaVu", "",  font_reg)
     pdf.add_font("DejaVu", "B", font_bold)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("DejaVu", "", 10)
 
-    USABLE_W = 170
-    LABEL_W  = 120
-    VALUE_W  = 50
-    ROW_H    = 7
+    USABLE_W  = 170   # ancho útil de página
+    LABEL_W   = 120   # ancho columna label
+    VALUE_W   = 50    # ancho columna value
+    ROW_H     = 8     # altura fija de fila
     ALT_COLOR = (245, 245, 245)
-    INDENT   = 2
+
+    # ── Helpers ──────────────────────────────────────────────
 
     def section_title(text):
-        pdf.ln(8)
+        """Barra azul de título de sección — usa cell (no multi_cell) para evitar saltos."""
+        pdf.ln(6)
         pdf.set_fill_color(30, 100, 200)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("DejaVu", "B", 12)
-        pdf.set_x(pdf.l_margin + INDENT)
-        pdf.cell(USABLE_W - INDENT, 9, text, new_x="LMARGIN", new_y="NEXT", fill=True)
+        pdf.set_font("DejaVu", "B", 11)
+        pdf.cell(USABLE_W, 9, text, new_x="LMARGIN", new_y="NEXT", fill=True)
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("DejaVu", "", 11)
-        pdf.ln(2)
-
-    def table_row(label, value, row_index=0):
-        x, y = pdf.get_x(), pdf.get_y()
-        avg_cw = pdf.get_string_width("a")
-        cpl = int((LABEL_W - INDENT) / max(avg_cw, 1))
-        lines_needed = max(1, -(-len(label) // cpl))
-        row_height = max(ROW_H, lines_needed * ROW_H)
-        pdf.set_fill_color(*(ALT_COLOR if row_index % 2 == 0 else (255, 255, 255)))
-        pdf.rect(x, y, USABLE_W, row_height, style="F")
-        pdf.set_font("DejaVu", "B", 10)
-        pdf.set_xy(x + INDENT, y)
-        pdf.multi_cell(LABEL_W - INDENT, ROW_H, label, border=0)
         pdf.set_font("DejaVu", "", 10)
-        pdf.set_xy(x + LABEL_W, y)
-        pdf.multi_cell(VALUE_W, ROW_H, value, border=0, align="R")
-        pdf.set_xy(x, y + row_height)
+        pdf.ln(1)
 
     def header_row(col1, col2):
+        """Encabezado de tabla con fondo oscuro — cursor controlado manualmente."""
+        x, y = pdf.l_margin, pdf.get_y()
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("DejaVu", "B", 10)
-        x, y = pdf.get_x(), pdf.get_y()
-        pdf.set_xy(x + INDENT, y)
-        pdf.multi_cell(LABEL_W - INDENT, ROW_H + 1, col1, fill=True, border=0)
-        pdf.set_xy(x + LABEL_W, y)
-        pdf.multi_cell(VALUE_W, ROW_H + 1, col2, fill=True, border=0, align="R",
-                       new_x="LMARGIN", new_y="NEXT")
+        # Dibujamos ambas celdas con cell (no multi_cell) — cursor no salta de página
+        pdf.set_xy(x, y)
+        pdf.cell(LABEL_W, ROW_H, col1, fill=True, border=0)
+        pdf.cell(VALUE_W, ROW_H, col2, fill=True, border=0, align="R",
+                 new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("DejaVu", "", 10)
 
+    def table_row(label, value, row_index=0):
+        """
+        Fila de tabla con altura fija.
+        Usa cell() para ambas columnas — evita que multi_cell
+        mueva el cursor Y de forma impredecible y genere páginas en blanco.
+        Si el label es muy largo lo truncamos con '...' para mantener la fila en 1 línea.
+        """
+        # Verificar si cabe en la página; si no, salto manual
+        if pdf.get_y() + ROW_H > pdf.h - pdf.b_margin:
+            pdf.add_page()
+
+        x, y = pdf.l_margin, pdf.get_y()
+
+        # Fondo alternado
+        pdf.set_fill_color(*(ALT_COLOR if row_index % 2 == 0 else (255, 255, 255)))
+        pdf.rect(x, y, USABLE_W, ROW_H, style="F")
+
+        # Truncar label si es demasiado largo para una celda
+        pdf.set_font("DejaVu", "B", 9)
+        max_label_w = LABEL_W - 4
+        while pdf.get_string_width(label) > max_label_w and len(label) > 5:
+            label = label[:-2] + "…"
+
+        # Label — cell fijo, sin mover Y
+        pdf.set_xy(x + 2, y)
+        pdf.cell(LABEL_W - 2, ROW_H, label, border=0)
+
+        # Value — cell fijo alineado a la derecha
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_xy(x + LABEL_W, y)
+        pdf.cell(VALUE_W, ROW_H, value, border=0, align="R",
+                 new_x="LMARGIN", new_y="NEXT")
+
     def body_text(text, size=10):
+        """Texto libre — multi_cell aquí es seguro porque no hay columnas paralelas."""
         pdf.set_font("DejaVu", "", size)
         pdf.multi_cell(USABLE_W, 6, text)
         pdf.ln(2)
 
-    def kv_simple(label, value, label_w=70):
-        x, y = pdf.get_x(), pdf.get_y()
-        pdf.set_font("DejaVu", "B", 11)
-        pdf.multi_cell(label_w, 7, label, border=0)
-        y_after = pdf.get_y()
-        pdf.set_xy(x + label_w, y)
-        pdf.set_font("DejaVu", "", 11)
-        pdf.multi_cell(USABLE_W - label_w, 7, value, border=0)
-        pdf.set_y(max(y_after, pdf.get_y()))
+    def info_box(pairs):
+        """
+        Caja de información con fondo azul claro.
+        pairs = [(label, value), ...]
+        Usa cell() para evitar cursor errático.
+        """
+        x, y_start = pdf.l_margin, pdf.get_y()
+        box_h = len(pairs) * ROW_H + 4
 
-    # PAGE 1 — DISCLAIMER
+        pdf.set_fill_color(240, 244, 255)
+        pdf.rect(x, y_start, USABLE_W, box_h, style="F")
+
+        for label, value in pairs:
+            pdf.set_xy(x + 2, pdf.get_y())
+            pdf.set_font("DejaVu", "B", 10)
+            pdf.cell(90, ROW_H, label, border=0)
+            pdf.set_font("DejaVu", "", 10)
+            pdf.cell(USABLE_W - 92, ROW_H, value, border=0,
+                     new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(3)
+
+    # ── PAGE 1 — DISCLAIMER ──────────────────────────────────
     pdf.add_page()
     pdf.set_fill_color(200, 30, 30)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font("DejaVu", "B", 14)
-    pdf.set_x(pdf.l_margin + INDENT)
-    pdf.cell(USABLE_W - INDENT, 12, t["disclaimer_label"], new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.set_font("DejaVu", "B", 13)
+    pdf.cell(USABLE_W, 12, t["disclaimer_label"],
+             new_x="LMARGIN", new_y="NEXT", fill=True)
     pdf.set_text_color(0, 0, 0)
-    pdf.ln(6)
+    pdf.ln(5)
     body_text(t["disclaimer_msg"])
 
-    # PAGE 2 — REPORT
+    # ── PAGE 2 — REPORT ──────────────────────────────────────
     pdf.add_page()
+
+    # Título del reporte
     pdf.set_fill_color(30, 100, 200)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font("DejaVu", "B", 15)
-    pdf.multi_cell(USABLE_W, 11, t["pdf_title"], align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("DejaVu", "B", 14)
+    pdf.cell(USABLE_W, 11, t["pdf_title"], align="C",
+             new_x="LMARGIN", new_y="NEXT", fill=True)
     pdf.set_text_color(0, 0, 0)
-    pdf.ln(3)
-    pdf.set_font("DejaVu", "", 10)
-    pdf.cell(USABLE_W, 6, t["pdf_generated_by"], align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(USABLE_W, 6, t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
-             align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(6)
+    pdf.ln(2)
 
-    info_y = pdf.get_y()
-    pdf.set_font("DejaVu", "B", 11)
-    kv_simple(t["pdf_user_name"].replace("{}", "").strip(),  user_name)
-    kv_simple(t["pdf_used_count"].replace("{}", "").strip(), str(num_docs))
-    info_bottom = pdf.get_y()
-    pdf.set_y(info_y)
-    pdf.set_fill_color(240, 244, 255)
-    pdf.rect(pdf.get_x(), info_y, USABLE_W, info_bottom - info_y + 3, style="F")
-    kv_simple(t["pdf_user_name"].replace("{}", "").strip(),  user_name)
-    kv_simple(t["pdf_used_count"].replace("{}", "").strip(), str(num_docs))
+    # Subtítulos centrados
+    pdf.set_font("DejaVu", "", 9)
+    pdf.cell(USABLE_W, 6, t["pdf_generated_by"], align="C",
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(USABLE_W, 6,
+             t["pdf_date"].format(datetime.now().strftime("%Y-%m-%d %H:%M")),
+             align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
+    # Caja de info del contribuyente
+    info_box([
+        (t["pdf_user_name"].replace("{}", "").strip(),  user_name),
+        (t["pdf_used_count"].replace("{}", "").strip(), str(num_docs)),
+    ])
+
+    # ── Tabla resumen ────────────────────────────────────────
     section_title(t["pdf_summary_title"])
     header_row(t["data_column_concept"], t["data_column_value"])
 
@@ -1246,6 +1279,7 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results, lang):
     for i, (label, value) in enumerate(summary_items):
         table_row(label, value, row_index=i)
 
+    # ── Tabla resultados ─────────────────────────────────────
     section_title(t["pdf_results_title"])
     header_row(t["data_column_concept"], t["data_column_value"])
     results_items = [
@@ -1256,23 +1290,26 @@ def build_final_pdf(user_name, uploaded_files, num_docs, results, lang):
     for i, (lbl, val) in enumerate(results_items):
         table_row(lbl, val, row_index=i)
 
-    pdf.ln(8)
+    # Deducción final destacada
+    pdf.ln(6)
     pdf.set_fill_color(0, 140, 60)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font("DejaVu", "B", 13)
-    pdf.set_x(pdf.l_margin + INDENT)
-    pdf.multi_cell(USABLE_W - INDENT, 13,
-                   t["pdf_final_deduction"].format(format_number(results["total_deduction"], lang=lang)),
-                   fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.cell(USABLE_W, 12,
+             t["pdf_final_deduction"].format(
+                 format_number(results["total_deduction"], lang=lang)),
+             fill=True, new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("DejaVu", "", 10)
 
+    # Sección evidencia
     section_title(t["pdf_evidence_title"])
     if uploaded_files:
         body_text(t["pdf_docs_attached"].format(len(uploaded_files)))
     else:
         body_text(t["pdf_no_docs"])
 
+    # ── Merge con adjuntos ───────────────────────────────────
     pdf_bytes = pdf.output()
     merger = PdfMerger()
     merger.append(BytesIO(pdf_bytes))
