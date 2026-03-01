@@ -81,6 +81,7 @@ texts = {
         "resend_error": "Por favor ingresa un correo válido.",
 
         # Banner de plan activo
+        "toast_welcome": "🎉 ¡Pago exitoso! Ya puedes usar la calculadora.",
         "banner_single_active": "✅ Plan: Pago por uso &nbsp;|&nbsp; 1 uso disponible &nbsp;|&nbsp; Vence: {date}",
         "banner_single_used": "🔒 Plan: Pago por uso &nbsp;|&nbsp; Uso ya consumido",
         "banner_sub_active": "✅ Plan: 100 usos mensuales &nbsp;|&nbsp; {uses} usos restantes &nbsp;|&nbsp; Vence: {date}",
@@ -249,6 +250,7 @@ texts = {
         "resend_error": "Please enter a valid email address.",
 
         # Plan banner
+        "toast_welcome": "🎉 Payment successful! You can now use the calculator.",
         "banner_single_active": "✅ Plan: Pay per use &nbsp;|&nbsp; 1 use available &nbsp;|&nbsp; Expires: {date}",
         "banner_single_used": "🔒 Plan: Pay per use &nbsp;|&nbsp; Use already consumed",
         "banner_sub_active": "✅ Plan: Monthly 100 uses &nbsp;|&nbsp; {uses} uses remaining &nbsp;|&nbsp; Expires: {date}",
@@ -485,6 +487,9 @@ if token and st.session_state.token_valid is None:
             st.session_state.token_valid = True
             st.session_state.token_data  = data
             st.session_state.token_uses_left = data.get("uses_left")
+            # Mostrar toast de bienvenida si el token fue creado hace menos de 2 minutos
+            if data.get("is_new"):
+                st.session_state.show_welcome_toast = True
         else:
             st.session_state.token_valid  = False
             st.session_state.token_data   = data
@@ -503,6 +508,11 @@ st.markdown("""
     <p style="color:var(--secondary-text-color);font-size:15px;">OVERTIME DEDUCTION CALCULATOR</p>
 </div>
 """, unsafe_allow_html=True)
+
+# ── Toast de bienvenida post-pago (se muestra una sola vez) ──
+if st.session_state.get("show_welcome_toast"):
+    st.toast(texts[st.session_state.language]["toast_welcome"], icon="🎉")
+    st.session_state.show_welcome_toast = False
 
 # ─────────────────────────────────────────────────────────────
 # RAMA: SIN TOKEN o TOKEN INVÁLIDO → LANDING
