@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
@@ -230,6 +230,9 @@ texts = {
         "language_options": ["Español", "English"],
         "button_continue": "Continuar",
         "error_pdf_generation": "❌ Error generating PDF: {}",
+        "error_ytd_required_1_5": "⚠️ La tarifa real de tiempo y medio no coincide con la esperada. Debe ingresar el total YTD para continuar.",
+        "error_ytd_required_2_0": "⚠️ La tarifa real de doble tarifa no coincide con la esperada. Debe ingresar el total YTD para continuar.",
+
     },
     "en": {
         # Landing
@@ -403,6 +406,9 @@ texts = {
         "language_options": ["Spanish", "English"],
         "button_continue": "Continue",
         "error_pdf_generation": "❌ Error al generar el PDF: {}",
+        "error_ytd_required_1_5": "⚠️ The actual time-and-a-half rate does not match the expected rate. You must enter the YTD total to continue.",
+        "error_ytd_required_2_0": "⚠️ The actual double-time rate does not match the expected rate. You must enter the YTD total to continue.",
+        
     }
 }
 
@@ -876,9 +882,11 @@ if eligible:
                 )
         else:
             with st.expander(t["option_b_title"], expanded=True):
+
+                # ── Base inputs ──────────────────────────────────────
                 regular_rate = pretty_money_input(
                     t["regular_rate_label"], value=0.0, step=0.5, decimals=2,
-                    help=t["regular_rate_help"]
+                    help=t["regular_rate_help"], lang=lang
                 )
                 ot_hours_1_5 = pretty_money_input(
                     t["ot_hours_1_5_label"], value=0.0, step=5.0, decimals=2,
@@ -888,6 +896,76 @@ if eligible:
                     t["dt_hours_2_0_label"], value=0.0, step=5.0, decimals=2,
                     help=t["dt_hours_2_0_help"], lang=lang, currency=" "
                 )
+
+                st.markdown("---")
+
+                # ── Actual rates from pay stub (always visible) ──────
+                actual_rate_1_5 = pretty_money_input(
+                    t["actual_rate_1_5_label"], value=0.0, step=0.5, decimals=2,
+                    help=t["actual_rate_1_5_help"], lang=lang,
+                    key="actual_rate_1_5_input"
+                )
+                actual_rate_2_0 = pretty_money_input(
+                    t["actual_rate_2_0_label"], value=0.0, step=0.5, decimals=2,
+                    help=t["actual_rate_2_0_help"], lang=lang,
+                    key="actual_rate_2_0_input"
+                )
+
+                # ── Rate comparison logic ────────────────────────────
+                TOLERANCE = 0.01  # 1%
+
+                expected_rate_1_5 = regular_rate * 1.5 if regular_rate > 0 else 0.0
+                expected_rate_2_0 = regular_rate * 2.0 if regular_rate > 0 else 0.0
+
+                mismatch_1_5 = (
+                    actual_rate_1_5 > 0 and expected_rate_1_5 > 0 and
+                    abs(actual_rate_1_5 - expected_rate_1_5) / expected_rate_1_5 > TOLERANCE
+                )
+                mismatch_2_0 = (
+                    actual_rate_2_0 > 0 and expected_rate_2_0 > 0 and
+                    abs(actual_rate_2_0 - expected_rate_2_0) / expected_rate_2_0 > TOLERANCE
+                )
+
+                # Show match/mismatch feedback for 1.5x
+                if actual_rate_1_5 > 0 and expected_rate_1_5 > 0:
+                    if mismatch_1_5:
+                        st.warning(t["rate_mismatch_warning_1_5"].format(
+                            actual=f"{actual_rate_1_5:.2f}",
+                            expected=f"{expected_rate_1_5:.2f}"
+                        ))
+                    else:
+                        st.info(t["rate_match_info"])
+
+                # Show match/mismatch feedback for 2.0x
+                if actual_rate_2_0 > 0 and expected_rate_2_0 > 0:
+                    if mismatch_2_0:
+                        st.warning(t["rate_mismatch_warning_2_0"].format(
+                            actual=f"{actual_rate_2_0:.2f}",
+                            expected=f"{expected_rate_2_0:.2f}"
+                        ))
+                    else:
+                        st.info(t["rate_match_info"])
+
+                # ── YTD override fields (only shown on mismatch) ─────
+                ytd_override_1_5 = 0.0
+                ytd_override_2_0 = 0.0
+
+                if mismatch_1_5:
+                    st.markdown("---")
+                    ytd_override_1_5 = pretty_money_input(
+                        t["ytd_override_label_1_5"], value=0.0, step=100.0, decimals=2,
+                        help=t["ytd_override_help"], lang=lang,
+                        key="ytd_override_1_5_input"
+                    )
+
+                if mismatch_2_0:
+                    if not mismatch_1_5:
+                        st.markdown("---")
+                    ytd_override_2_0 = pretty_money_input(
+                        t["ytd_override_label_2_0"], value=0.0, step=100.0, decimals=2,
+                        help=t["ytd_override_help"], lang=lang,
+                        key="ytd_override_2_0_input"
+                    )
 
     # ─────────────────────────────────────────────────────────
     # BOTÓN CALCULAR — lógica según tipo y estado del token
@@ -954,10 +1032,20 @@ if eligible:
                     st.error(t["error_empty_option_b"])
                     st.stop()
                 method_used = t["method_hours"]
-                rate_1_5 = regular_rate * 1.5
-                rate_2_0 = regular_rate * 2.0
-                ot_1_5_total = ot_hours_1_5 * rate_1_5
-                ot_2_0_total = dt_hours_2_0 * rate_2_0
+                
+               # Use actual rates if provided, otherwise fall back to expected
+                rate_1_5 = actual_rate_1_5 if actual_rate_1_5 > 0 else regular_rate * 1.5
+                rate_2_0 = actual_rate_2_0 if actual_rate_2_0 > 0 else regular_rate * 2.0
+
+                # Use YTD override if provided (mismatch case), otherwise calculate from hours
+                if mismatch_1_5 and ytd_override_1_5 <= 0:
+                    st.error(t["error_ytd_required_1_5"])
+                    st.stop()
+                if mismatch_2_0 and ytd_override_2_0 <= 0:
+                    st.error(t["error_ytd_required_2_0"])
+                    st.stop()
+                else:
+                    ot_2_0_total = dt_hours_2_0 * rate_2_0
 
             # ── Cálculo (no consume token) ──
             ot_total_paid  = ot_1_5_total + ot_2_0_total
