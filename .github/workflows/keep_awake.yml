@@ -1,0 +1,27 @@
+name: Mantener Streamlit Despierto
+
+on:
+  schedule:
+    - cron: '*/6 * * * *'  # Cada 6 minutos
+  workflow_dispatch:         # Permite ejecutarlo manualmente para probar
+
+jobs:
+  awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HTTP a la app de Streamlit
+        run: |
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" \
+            --max-time 30 \
+            "https://obbbcalculatorj-zzvagvkvosyzzukjnuyhy6.streamlit.app/"
+          echo "Ping enviado a las $(date)"
+
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Commit vacío para mantener workflow activo
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit --allow-empty -m "Keep alive $(date)"
+          git push
