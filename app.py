@@ -184,21 +184,19 @@ texts = {
             "¿La mayoría de las horas extras se pagan a tiempo y medio?",
             "Estado civil para la declaración de impuestos",
             "¿Posee un Número de Seguro Social válido para trabajar?",
-            "¿Posee un Número de Identificación Tributaria Individual (ITIN)?"
+            "¿Posee un Número de Identificación Tributaria Individual (ITIN)?",
+            "data_concept_regular_rate":       "Tarifa horaria regular",
+            "data_concept_ot_hours_1_5":       "Horas trabajadas a tiempo y medio",
+            "data_concept_dt_hours_2_0":       "Horas trabajadas a doble tarifa",
+            "data_concept_expected_rate_1_5":  "Tarifa esperada a tiempo y medio (regular × 1.5)",
+            "data_concept_expected_rate_2_0":  "Tarifa esperada a doble tarifa (regular × 2.0)",
+            "data_concept_actual_rate_1_5":    "Tarifa real ingresada a tiempo y medio",
+            "data_concept_actual_rate_2_0":    "Tarifa real ingresada a doble tarifa",
+            "data_source_calculated":          "Calculado (horas × tarifa)",
+            "data_source_override":            "Total ingresado manualmente (recibo/W-2)"
         ],
         "data_column_concept": "Concepto",
         "data_column_value": "Valor",
-        "data_concept_regular_rate":       "Tarifa horaria regular",
-        "data_concept_ot_hours_1_5":       "Horas trabajadas a tiempo y medio",
-        "data_concept_dt_hours_2_0":       "Horas trabajadas a doble tarifa",
-        "data_concept_expected_rate_1_5":  "Tarifa esperada a tiempo y medio (regular × 1.5)",
-        "data_concept_expected_rate_2_0":  "Tarifa esperada a doble tarifa (regular × 2.0)",
-        "data_concept_actual_rate_1_5":    "Tarifa real ingresada a tiempo y medio",
-        "data_concept_actual_rate_2_0":    "Tarifa real ingresada a doble tarifa",
-        "data_concept_rate_source_1_5":    "Origen del total a tiempo y medio",
-        "data_concept_rate_source_2_0":    "Origen del total a doble tarifa",
-        "data_source_calculated":          "Calculado (horas × tarifa)",
-        "data_source_override":            "Total ingresado manualmente (recibo/W-2)",
         "results_tab_title": "Resultados y deducción estimada",
         "total_deduction_label": "Deducción aplicable en la línea 14 del Schedule 1 (Formulario 1040)",
         "total_deduction_delta": "Monto final a deducir de la base imponible",
@@ -381,21 +379,19 @@ texts = {
             "Are most overtime hours paid at time-and-a-half?",
             "Filing status for tax return",
             "Has a valid Social Security Number for employment?",
-            "Has an Individual Taxpayer Identification Number (ITIN)?"
+            "Has an Individual Taxpayer Identification Number (ITIN)?",
+            "data_concept_regular_rate":       "Regular hourly rate",
+            "data_concept_ot_hours_1_5":       "Hours worked at time-and-a-half",
+            "data_concept_dt_hours_2_0":       "Hours worked at double time",
+            "data_concept_expected_rate_1_5":  "Expected time-and-a-half rate (regular × 1.5)",
+            "data_concept_expected_rate_2_0":  "Expected double-time rate (regular × 2.0)",
+            "data_concept_actual_rate_1_5":    "Actual time-and-a-half rate entered",
+            "data_concept_actual_rate_2_0":    "Actual double-time rate entered",
+            "data_source_calculated":          "Calculated (hours × rate)",
+            "data_source_override":            "Manually entered total (pay stub/W-2)"
         ],
         "data_column_concept": "Concept",
         "data_column_value": "Value",
-        "data_concept_regular_rate":       "Regular hourly rate",
-        "data_concept_ot_hours_1_5":       "Hours worked at time-and-a-half",
-        "data_concept_dt_hours_2_0":       "Hours worked at double time",
-        "data_concept_expected_rate_1_5":  "Expected time-and-a-half rate (regular × 1.5)",
-        "data_concept_expected_rate_2_0":  "Expected double-time rate (regular × 2.0)",
-        "data_concept_actual_rate_1_5":    "Actual time-and-a-half rate entered",
-        "data_concept_actual_rate_2_0":    "Actual double-time rate entered",
-        "data_concept_rate_source_1_5":    "Source for time-and-a-half total",
-        "data_concept_rate_source_2_0":    "Source for double-time total",
-        "data_source_calculated":          "Calculated (hours × rate)",
-        "data_source_override":            "Manually entered total (pay stub/W-2)",
         "results_tab_title": "Results and Estimated Deduction",
         "total_deduction_label": "Deduction applicable on line 14 of Schedule 1 (Form 1040)",
         "total_deduction_delta": "Final amount to be deducted from taxable income",
@@ -873,6 +869,9 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
 # PASO 2: INGRESOS
 # ─────────────────────────────────────────────────────────────
 if eligible:
+    src_1_5 = None
+    src_2_0 = None
+    
     with st.expander(f"### {t['step2_title']}", expanded=True):
         st.info(t["step2_info"])
 
@@ -1070,6 +1069,9 @@ if eligible:
                     st.stop()
 
                 method_used = t["method_hours"]
+                
+                src_1_5 = t["data_source_override"] if data["mismatch_1_5"] else t["data_source_calculated"]
+                src_2_0 = t["data_source_override"] if data["mismatch_2_0"] else t["data_source_calculated"]
 
                 # Block if mismatch but no override provided
                 if mismatch_1_5 and ytd_override_1_5 <= 0:
@@ -1223,59 +1225,114 @@ if eligible and st.session_state.show_results:
     with tab_data:
         st.subheader(t["data_subtitle"])
         data = st.session_state.results
-        is_option_b = data["method_used"] == t["method_hours"]
-        concepts = list(t["data_concepts"])  # existing 16 rows
-        values = [
-            format_number(data["total_income"],    lang),
-            format_number(data["base_salary"],     lang),
-            format_number(data["ot_1_5_total"],    lang),
-            "--" if not data["ot_2_0_total"]   else format_number(data["ot_2_0_total"],   lang),
-            format_number(data["ot_total_paid"],   lang),
-            format_number(data["ot_1_5_premium"],  lang),
-            "--" if not data["ot_2_0_premium"] else format_number(data["ot_2_0_premium"], lang),
-            "--" if not data["rate_1_5"]        else format_number(data["rate_1_5"],       lang),
-            "--" if not data["rate_2_0"]        else format_number(data["rate_2_0"],       lang),
-            format_number(data["deduction_limit"], lang),
-            data["method_used"],
-            data["over_40"],
-            data["ot_1_5x"],
-            data["filing_status"],
-            data["ss_check"],
-            data["itin_check"],
-        ]
-            
-        if is_option_b:
-            concepts += [
-                t["data_concept_regular_rate"],
-                t["data_concept_ot_hours_1_5"],
-                t["data_concept_dt_hours_2_0"],
-                t["data_concept_expected_rate_1_5"],
-                t["data_concept_expected_rate_2_0"],
-                t["data_concept_actual_rate_1_5"],
-                t["data_concept_actual_rate_2_0"],
-                t["data_concept_rate_source_1_5"],
-                t["data_concept_rate_source_2_0"],
-            ]
-            src_1_5 = t["data_source_override"] if data["mismatch_1_5"] else t["data_source_calculated"]
-            src_2_0 = t["data_source_override"] if data["mismatch_2_0"] else t["data_source_calculated"]
-            values += [
-                format_number(data["regular_rate"],       lang),
-                format_number(data["ot_hours_1_5"],       lang, currency=" "),
-                format_number(data["dt_hours_2_0"],       lang, currency=" "),
-                format_number(data["expected_rate_1_5"],  lang),
-                format_number(data["expected_rate_2_0"],  lang),
-                "--" if not data["actual_rate_1_5"] else format_number(data["actual_rate_1_5"], lang),
-                "--" if not data["actual_rate_2_0"] else format_number(data["actual_rate_2_0"], lang),
-                src_1_5,
-                src_2_0,
-            ]
 
-        data_summary = {
-            t["data_column_concept"]: concepts,
-            t["data_column_value"]:   values,
-        }
-        st.dataframe(pd.DataFrame(data_summary), use_container_width=True)
-    
+        is_option_b = data["method_used"] == t["method_hours"]
+
+        # ── Helper to show value or "--" depending on method ─────────────────────
+        def val_or_dash(v, is_money=True, hours=False):
+            if v is None or v == 0:
+                return "--"
+            if is_money:
+                return format_number(v, lang)
+            if hours:
+                return f"{v:.1f} h" if v > 0 else "--"
+            return v
+
+        # ── Prepare rows (fixed order, always show all concepts) ─────────────────
+        rows = []
+
+        # 1. General / Eligibility
+        rows.append((t["filing_status_label"], data["filing_status"] or "--"))
+        rows.append((t["ss_check_label"], data["ss_check"] or "--"))
+        rows.append((t["itin_check_label"], data["itin_check"] or "--"))
+        rows.append((t["over_40_label"], data["over_40"] or "--"))
+        rows.append((t["ot_1_5x_label"], data["ot_1_5x"] or "--"))
+
+        # Separator
+        rows.append(("—" * 45, ""))
+
+        # 2. Income
+        rows.append((t["magi_label"], format_number(data["total_income"], lang)))
+        rows.append(("Salario base estimado", format_number(data["base_salary"], lang)))
+
+        # Separator
+        rows.append(("—" * 45, ""))
+
+        # 3. Overtime summary (common to both methods)
+        rows.append(("Método utilizado", data["method_used"]))
+        rows.append((t["ot_total_1_5_paid_label"], format_number(data["ot_1_5_total"], lang)))
+        rows.append((t["ot_total_2_0_paid_label"], format_number(data["ot_2_0_total"], lang)))
+        rows.append(("Total pagado por horas extras", format_number(data["ot_total_paid"], lang)))
+
+        # Separator
+        rows.append(("—" * 45, ""))
+
+        # 4. Option B specific fields — always shown, but "--" if not Option B
+        rows.append((t["regular_rate_label"], 
+                        val_or_dash(data["regular_rate"], is_money=True) if is_option_b else "--"))
+
+        rows.append((t["ot_hours_1_5_label"], 
+                        val_or_dash(data["ot_hours_1_5"], hours=True) if is_option_b else "--"))
+
+        rows.append((t["dt_hours_2_0_label"], 
+                        val_or_dash(data["dt_hours_2_0"], hours=True) if is_option_b else "--"))
+
+        rows.append((t["data_concept_expected_rate_1_5"], 
+                        format_number(data["expected_rate_1_5"], lang) if is_option_b else "--"))
+
+        rows.append((t["data_concept_expected_rate_2_0"], 
+                        format_number(data["expected_rate_2_0"], lang) if is_option_b else "--"))
+
+        rows.append((t["actual_rate_1_5_label"], 
+                        format_number(data["actual_rate_1_5"], lang) if is_option_b and data["actual_rate_1_5"] > 0 else "--"))
+
+        rows.append((t["actual_rate_2_0_label"], 
+                        format_number(data["actual_rate_2_0"], lang) if is_option_b and data["actual_rate_2_0"] > 0 else "--"))
+
+        rows.append(("Fuente monto 1.5×", 
+                        data.get("src_1_5", t["data_source_calculated"]) if is_option_b else "--"))
+
+        rows.append(("Fuente monto 2.0×", 
+                        data.get("src_2_0", t["data_source_calculated"]) if is_option_b else "--"))
+
+        # Separator
+        rows.append(("—" * 45, ""))
+
+        # 5. Calculated premiums & final result
+        rows.append(("Pago adicional por horas extras a 1.5× (deducible)", 
+                        format_number(data["ot_1_5_premium"], lang)))
+        rows.append(("Pago adicional por horas extras a 2.0× (deducible)", 
+                        format_number(data["ot_2_0_premium"], lang) if data["ot_2_0_premium"] > 0 else "--"))
+        rows.append(("Total prima calificada por horas extras (antes de límite)", 
+                        format_number(data["qoc_gross"], lang)))
+        rows.append(("Límite máximo deducible según nivel de ingresos", 
+                        format_number(data["deduction_limit"], lang)))
+        rows.append((t["total_deduction_label"], 
+                        format_number(data["total_deduction"], lang)))
+
+        # ── Build & display DataFrame ────────────────────────────────────────────
+        df = pd.DataFrame(rows, columns=[t["data_column_concept"], t["data_column_value"]])
+
+        # Optional: highlight important rows
+        def highlight_rows(s):
+            important = [
+                "Total prima calificada por horas extras (antes de límite)",
+                t["total_deduction_label"],
+                "Límite máximo deducible según nivel de ingresos"
+            ]
+            if s in important:
+                return ['background-color: #e8f5e9; font-weight: 600'] * 2
+            return [''] * 2
+
+        st.dataframe(
+            df.style.apply(highlight_rows, axis=1),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                t["data_column_concept"]: st.column_config.TextColumn("Concepto", width="large"),
+                t["data_column_value"]: st.column_config.TextColumn("Valor", width="medium"),
+            }
+        )
     
 # ─────────────────────────────────────────────────────────────
 # PDF
