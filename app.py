@@ -131,8 +131,8 @@ texts = {
         "itin_check_label": "¿El contribuyente posee un Número de Identificación Tributaria Individual (ITIN)?",
         "ot_1_5x_label": "¿La mayoría de las horas extras se remuneran con una tarifa de tiempo y medio (1.5x la tarifa regular)?",
         "unlock_message": "De acuerdo con las respuestas proporcionadas, es posible que no se cumplan los requisitos para aplicar la deducción. Se recomienda consultar con un contador profesional antes de continuar.",
-        "eligible_blocked_info": "✅ Sus respuestas cumplen con los requisitos básicos de elegibilidad. Para modificarlas, utilice el botón inferior.",
-        "reiniciar_button": "🔄 Reiniciar respuestas de elegibilidad",
+        "eligible_blocked_info": "✅ Sus respuestas cumplen con los requisitos básicos de elegibilidad. Las respuestas han sido bloqueadas.",
+        "restart_button": "🔄 Comenzar de nuevo",
         "step2_title": "Paso 2: Ingreso de datos de ingresos y horas extras",
         "step2_info": "Ingrese su ingreso total aproximado del año (incluyendo todos los conceptos gravables).",
         "magi_label": "Ingreso total aproximado del año (incluye salario base, horas extras, bonos, etc) ($)",
@@ -311,8 +311,8 @@ texts = {
         "itin_check_label": "Does the taxpayer have an Individual Taxpayer Identification Number (ITIN)?",
         "ot_1_5x_label": "Are most overtime hours paid at time-and-a-half rate (1.5x the regular rate)?",
         "unlock_message": "Based on the responses provided, the requirements for this deduction may not be met. It is recommended to consult a tax professional before proceeding.",
-        "eligible_blocked_info": "✅ Your answers meet the basic eligibility requirements. To modify them, use the button below.",
-        "reiniciar_button": "🔄 Reset eligibility responses",
+        "eligible_blocked_info": "✅ Your answers meet the basic eligibility requirements. Your responses have been locked.",
+        "restart_button": "🔄 Start over",
         "step2_title": "Step 2: Enter Income and Overtime Data",
         "step2_info": "Please enter your approximate total income for the year (including all taxable income).",
         "magi_label": "Approximate total annual income (includes base salary, overtime, bonuses, etc.) ($)",
@@ -798,19 +798,9 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
 
     if eligible:
         st.info(t["eligible_blocked_info"])
-        if st.button(t["reiniciar_button"], type="secondary", use_container_width=True):
-            st.session_state.eligible = False
-            for k in ("input_filing_val", "input_over40_val", "input_ot15x_val",
-                      "input_ss_val", "input_itin_val"):
-                st.session_state.pop(k, None)
-            st.session_state.completed_step_2 = False
-            st.session_state.show_results     = False
-            st.session_state.results          = None
-            st.session_state.pdf_bytes        = None
-            st.rerun()
     elif all_answered:
         st.warning(t["unlock_message"])
-        if st.button(t["reiniciar_button"], type="secondary", use_container_width=True):
+        if st.button(t["restart_button"], type="secondary", use_container_width=True):
             for k in ("input_filing_val", "input_over40_val", "input_ot15x_val",
                       "input_ss_val", "input_itin_val"):
                 st.session_state.pop(k, None)
