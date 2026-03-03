@@ -132,7 +132,6 @@ texts = {
         "ot_1_5x_label": "¿La mayoría de las horas extras se remuneran con una tarifa de tiempo y medio (1.5x la tarifa regular)?",
         "unlock_message": "De acuerdo con las respuestas proporcionadas, es posible que no se cumplan los requisitos para aplicar la deducción. Se recomienda consultar con un contador profesional antes de continuar.",
         "eligible_blocked_info": "✅ Sus respuestas cumplen con los requisitos básicos de elegibilidad. Las respuestas han sido bloqueadas.",
-        "restart_button": "🔄 Comenzar de nuevo",
         "step2_title": "Paso 2: Ingreso de datos de ingresos y horas extras",
         "step2_info": "Ingrese su ingreso total aproximado del año (incluyendo todos los conceptos gravables).",
         "magi_label": "Ingreso total aproximado del año (incluye salario base, horas extras, bonos, etc) ($)",
@@ -312,7 +311,6 @@ texts = {
         "ot_1_5x_label": "Are most overtime hours paid at time-and-a-half rate (1.5x the regular rate)?",
         "unlock_message": "Based on the responses provided, the requirements for this deduction may not be met. It is recommended to consult a tax professional before proceeding.",
         "eligible_blocked_info": "✅ Your answers meet the basic eligibility requirements. Your responses have been locked.",
-        "restart_button": "🔄 Start over",
         "step2_title": "Step 2: Enter Income and Overtime Data",
         "step2_info": "Please enter your approximate total income for the year (including all taxable income).",
         "magi_label": "Approximate total annual income (includes base salary, overtime, bonuses, etc.) ($)",
@@ -437,7 +435,6 @@ texts = {
 _DEFAULTS = {
     # Eligibility
     "eligible": False,
-    "reset_counter": 0,
     "input_filing_val":  None,
     "input_over40_val":  None,
     "input_ot15x_val":   None,
@@ -738,12 +735,10 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         except ValueError:
             return None
 
-    _rc = st.session_state.reset_counter  # bump forces widget recreation
-
     filing_status = st.radio(
         t["filing_status_label"], t["filing_status_options"],
         index=_radio_index("input_filing_val", t["filing_status_options"]),
-        horizontal=True, disabled=eligible, key=f"w_filing_{_rc}",
+        horizontal=True, disabled=eligible, key="w_filing",
     )
     st.session_state.input_filing_val = (
         t["filing_status_options"].index(filing_status) if filing_status is not None else None
@@ -752,7 +747,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     over_40 = st.radio(
         t["over_40_label"], t["answer_options"],
         index=_radio_index("input_over40_val", t["answer_options"]),
-        horizontal=True, disabled=eligible, help=t["over_40_help"], key=f"w_over40_{_rc}",
+        horizontal=True, disabled=eligible, help=t["over_40_help"], key="w_over40",
     )
     st.session_state.input_over40_val = (
         t["answer_options"].index(over_40) if over_40 is not None else None
@@ -761,7 +756,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     ot_1_5x = st.radio(
         t["ot_1_5x_label"], t["answer_options"],
         index=_radio_index("input_ot15x_val", t["answer_options"]),
-        horizontal=True, disabled=eligible, help=t["ot_1_5x_help"], key=f"w_ot15x_{_rc}",
+        horizontal=True, disabled=eligible, help=t["ot_1_5x_help"], key="w_ot15x",
     )
     st.session_state.input_ot15x_val = (
         t["answer_options"].index(ot_1_5x) if ot_1_5x is not None else None
@@ -770,7 +765,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     ss_check = st.radio(
         t["ss_check_label"], t["answer_options"],
         index=_radio_index("input_ss_val", t["answer_options"]),
-        horizontal=True, disabled=eligible, help=t["ss_check_help"], key=f"w_ss_{_rc}",
+        horizontal=True, disabled=eligible, help=t["ss_check_help"], key="w_ss",
     )
     st.session_state.input_ss_val = (
         t["answer_options"].index(ss_check) if ss_check is not None else None
@@ -779,7 +774,7 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
     itin_check = st.radio(
         t["itin_check_label"], t["answer_options"],
         index=_radio_index("input_itin_val", t["answer_options"]),
-        horizontal=True, disabled=eligible, help=t["itin_check_help"], key=f"w_itin_{_rc}",
+        horizontal=True, disabled=eligible, help=t["itin_check_help"], key="w_itin",
     )
     st.session_state.input_itin_val = (
         t["answer_options"].index(itin_check) if itin_check is not None else None
@@ -803,12 +798,6 @@ with st.expander(f"### {t['step1_title']}", expanded=not eligible):
         st.info(t["eligible_blocked_info"])
     elif all_answered:
         st.warning(t["unlock_message"])
-        if st.button(t["restart_button"], type="secondary", use_container_width=True):
-            for k in ("input_filing_val", "input_over40_val", "input_ot15x_val",
-                      "input_ss_val", "input_itin_val"):
-                st.session_state.pop(k, None)
-            st.session_state.reset_counter += 1
-            st.rerun()
 
 # ─────────────────────────────────────────────────────────────
 # STEP 2 — INCOME
