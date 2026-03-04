@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import base64
 from datetime import datetime
 from logic import calculate_ot_premium, apply_phaseout
 from fpdf import FPDF
@@ -91,11 +92,11 @@ texts = {
         "resend_success": "Si este correo tiene una compra registrada, recibirás el enlace en breve.",
         "resend_error": "Por favor ingresa un correo válido.",
         # Toasts / banners
-        "toast_welcome": "🎉 ¡Pago exitoso! Ya puedes usar la calculadora.",
-        "toast_single_consumed": "🔒 Tu uso ha sido consumido. ¡Gracias por usar ZaiOT!",
-        "toast_sub_low_5": "⚠️ Te quedan solo 5 usos este mes.",
-        "toast_sub_low_1": "⚠️ Te queda solo 1 uso este mes.",
-        "toast_sub_exhausted": "🔒 Has agotado todos tus usos del mes. ¡Gracias por usar ZaiOT!",
+        "toast_welcome": "¡Pago exitoso! Ya puedes usar la calculadora.",
+        "toast_single_consumed": "Tu uso ha sido consumido. ¡Gracias por usar ZaiOT!",
+        "toast_sub_low_5": "Te quedan solo 5 usos este mes.",
+        "toast_sub_low_1": "Te queda solo 1 uso este mes.",
+        "toast_sub_exhausted": "Has agotado todos tus usos del mes. ¡Gracias por usar ZaiOT!",
         "banner_single_active": "✅ Plan: Pago por uso &nbsp;|&nbsp; 1 uso disponible &nbsp;|&nbsp; Vence: {date}",
         "banner_single_used": "🔒 Plan: Pago por uso &nbsp;|&nbsp; Uso ya consumido",
         "banner_sub_active": "✅ Plan: 100 usos mensuales &nbsp;|&nbsp; {uses} usos restantes &nbsp;|&nbsp; Vence: {date}",
@@ -270,11 +271,11 @@ texts = {
         "resend_success": "If this email has a registered purchase, you will receive the link shortly.",
         "resend_error": "Please enter a valid email address.",
         # Toasts / banners
-        "toast_welcome": "🎉 Payment successful! You can now use the calculator.",
-        "toast_single_consumed": "🔒 Your use has been consumed. Thank you for using ZaiOT!",
-        "toast_sub_low_5": "⚠️ You have only 5 uses left this month.",
-        "toast_sub_low_1": "⚠️ You have only 1 use left this month.",
-        "toast_sub_exhausted": "🔒 You have used all your monthly uses. Thank you for using ZaiOT!",
+        "toast_welcome": "Payment successful! You can now use the calculator.",
+        "toast_single_consumed": "Your use has been consumed. Thank you for using ZaiOT!",
+        "toast_sub_low_5": "You have only 5 uses left this month.",
+        "toast_sub_low_1": "You have only 1 use left this month.",
+        "toast_sub_exhausted": "You have used all your monthly uses. Thank you for using ZaiOT!",
         "banner_single_active": "✅ Plan: Pay per use &nbsp;|&nbsp; 1 use available &nbsp;|&nbsp; Expires: {date}",
         "banner_single_used": "🔒 Plan: Pay per use &nbsp;|&nbsp; Use already consumed",
         "banner_sub_active": "✅ Plan: Monthly 100 uses &nbsp;|&nbsp; {uses} uses remaining &nbsp;|&nbsp; Expires: {date}",
@@ -560,18 +561,22 @@ if token and st.session_state.token_valid is None:
 # ─────────────────────────────────────────────────────────────
 # LOGO
 # ─────────────────────────────────────────────────────────────
-st.markdown("""
+
+_logo_path = os.path.join(BASE_DIR, "assets", "zaitax_logo.png")  # Ruta del logo.
+with open(_logo_path, "rb") as _f:
+    _logo_b64 = base64.b64encode(_f.read()).decode()
+
+st.markdown(f"""
 <div style='text-align:center;margin-bottom:24px;'>
-  <h1 style="font-size:52px;font-weight:800;letter-spacing:2px;margin-bottom:5px;">
-    <span style="color:#ff4a66;">Zai</span><span style="color:#747375;">O</span><span style="color:#0282fe;">T</span>
-  </h1>
+  <img src="data:image/png;base64,{_logo_b64}"
+       style="max-width:420px;width:80%;height:auto;" />
   <p style="color:var(--secondary-text-color);font-size:15px;">OVERTIME DEDUCTION CALCULATOR</p>
 </div>
 """, unsafe_allow_html=True)
 
 # Toasts
 if st.session_state.get("show_welcome_toast"):
-    st.toast(t["toast_welcome"], icon="🎉")
+    st.toast(t["toast_welcome"])
     st.session_state.show_welcome_toast = False
 
 _TOAST_MAP = {
