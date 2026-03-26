@@ -1,7 +1,8 @@
-﻿import os
+import os
 import streamlit as st
 import pandas as pd
 import requests
+import base64
 from datetime import datetime
 from logic import calculate_ot_premium, apply_phaseout
 from fpdf import FPDF
@@ -96,11 +97,11 @@ texts = {
         "resend_success": "Si este correo tiene una compra registrada, recibirás el enlace en breve.",
         "resend_error": "Por favor ingresa un correo válido.",
         # Toasts / banners
-        "toast_welcome": "🎉 ¡Pago exitoso! Ya puedes usar la calculadora.",
-        "toast_single_consumed": "🔒 Tu uso ha sido consumido. ¡Gracias por usar ZaiOT!",
-        "toast_sub_low_5": "⚠️ Te quedan solo 5 usos este mes.",
-        "toast_sub_low_1": "⚠️ Te queda solo 1 uso este mes.",
-        "toast_sub_exhausted": "🔒 Has agotado todos tus usos del mes. ¡Gracias por usar ZaiOT!",
+        "toast_welcome": "¡Pago exitoso! Ya puedes usar la calculadora.",
+        "toast_single_consumed": "Tu uso ha sido consumido. ¡Gracias por usar ZaiOT!",
+        "toast_sub_low_5": "Te quedan solo 5 usos este mes.",
+        "toast_sub_low_1": "Te queda solo 1 uso este mes.",
+        "toast_sub_exhausted": "Has agotado todos tus usos del mes. ¡Gracias por usar ZaiOT!",
         "banner_single_active": "✅ Plan: Pago por uso &nbsp;|&nbsp; 1 uso disponible &nbsp;|&nbsp; Vence: {date}",
         "banner_single_used": "🔒 Plan: Pago por uso &nbsp;|&nbsp; Uso ya consumido",
         "banner_sub_active": "✅ Plan: 100 usos mensuales &nbsp;|&nbsp; {uses} usos restantes &nbsp;|&nbsp; Vence: {date}",
@@ -180,8 +181,8 @@ texts = {
         "actual_rate_1_5_help": "Ingrese la tarifa exacta que aparece en su recibo de pago por horas extras a 1.5x. Si no aplica, deje en 0.",
         "actual_rate_2_0_label": "Tarifa real pagada por horas extras a doble tarifa ($ por hora)",
         "actual_rate_2_0_help": "Ingrese la tarifa exacta que aparece en su recibo de pago por horas extras a 2.0x. Si no aplica, deje en 0.",
-        "rate_mismatch_warning_1_5": "⚠️ La tarifa real ingresada (\\${actual}) difiere de la tarifa esperada (\\${expected} = tarifa regular × 1.5). Esto puede ocurrir si su empleador usa un método de cálculo diferente.",
-        "rate_mismatch_warning_2_0": "⚠️ La tarifa real ingresada (\\${actual}) difiere de la tarifa esperada (\\${expected} = tarifa regular × 2.0). Esto puede ocurrir si su empleador usa un método de cálculo diferente.",
+        "rate_mismatch_warning_1_5": "⚠️ La tarifa real ingresada x1.5 (\\${actual}) difiere de la tarifa esperada (\\${expected} = tarifa regular × 1.5). Esto puede ocurrir si su empleador usa un método de cálculo diferente.",
+        "rate_mismatch_warning_2_0": "⚠️ La tarifa real ingresada x2.0 (\\${actual}) difiere de la tarifa esperada (\\${expected} = tarifa regular × 2.0). Esto puede ocurrir si su empleador usa un método de cálculo diferente.",
         "rate_match_info": "✅ La tarifa real coincide con la tarifa esperada.",
         "ytd_override_label_1_5": "Total acumulado de horas extras a tiempo y medio según su recibo de pago ($)",
         "ytd_override_label_2_0": "Total acumulado de horas extras a doble tarifa según su recibo de pago ($)",
@@ -281,11 +282,11 @@ texts = {
         "resend_success": "If this email has a registered purchase, you will receive the link shortly.",
         "resend_error": "Please enter a valid email address.",
         # Toasts / banners
-        "toast_welcome": "🎉 Payment successful! You can now use the calculator.",
-        "toast_single_consumed": "🔒 Your use has been consumed. Thank you for using ZaiOT!",
-        "toast_sub_low_5": "⚠️ You have only 5 uses left this month.",
-        "toast_sub_low_1": "⚠️ You have only 1 use left this month.",
-        "toast_sub_exhausted": "🔒 You have used all your monthly uses. Thank you for using ZaiOT!",
+        "toast_welcome": "Payment successful! You can now use the calculator.",
+        "toast_single_consumed": "Your use has been consumed. Thank you for using ZaiOT!",
+        "toast_sub_low_5": "You have only 5 uses left this month.",
+        "toast_sub_low_1": "You have only 1 use left this month.",
+        "toast_sub_exhausted": "You have used all your monthly uses. Thank you for using ZaiOT!",
         "banner_single_active": "✅ Plan: Pay per use &nbsp;|&nbsp; 1 use available &nbsp;|&nbsp; Expires: {date}",
         "banner_single_used": "🔒 Plan: Pay per use &nbsp;|&nbsp; Use already consumed",
         "banner_sub_active": "✅ Plan: Monthly 100 uses &nbsp;|&nbsp; {uses} uses remaining &nbsp;|&nbsp; Expires: {date}",
@@ -365,8 +366,8 @@ texts = {
         "actual_rate_1_5_help": "Enter the exact rate shown on your pay stub for 1.5x overtime. Leave at 0 if not applicable.",
         "actual_rate_2_0_label": "Actual overtime rate paid at double time ($ per hour)",
         "actual_rate_2_0_help": "Enter the exact rate shown on your pay stub for 2.0x overtime. Leave at 0 if not applicable.",
-        "rate_mismatch_warning_1_5": "⚠️ The actual rate entered (${actual}) differs from the expected rate (${expected} = regular rate × 1.5). This may happen if your employer uses a different calculation method.",
-        "rate_mismatch_warning_2_0": "⚠️ The actual rate entered (${actual}) differs from the expected rate (${expected} = regular rate × 2.0). This may happen if your employer uses a different calculation method.",
+        "rate_mismatch_warning_1_5": "⚠️ The actual rate entered x1.5 (${actual}) differs from the expected rate (${expected} = regular rate × 1.5). This may happen if your employer uses a different calculation method.",
+        "rate_mismatch_warning_2_0": "⚠️ The actual rate entered x2.0 (${actual}) differs from the expected rate (${expected} = regular rate × 2.0). This may happen if your employer uses a different calculation method.",
         "rate_match_info": "✅ Actual rate matches the expected rate.",
         "ytd_override_label_1_5": "Total time-and-a-half overtime from your pay stub ($)",
         "ytd_override_label_2_0": "Total double-time overtime from your pay stub ($)",
@@ -450,14 +451,12 @@ texts = {
 # SESSION STATE
 # ─────────────────────────────────────────────────────────────
 _DEFAULTS = {
-    # Eligibility
     "eligible": False,
     "input_filing_val":  None,
     "input_over40_val":  None,
     "input_ot15x_val":   None,
     "input_ss_val":      None,
     "input_itin_val":    None,
-    # Step 2
     "results": None,
     "show_results": False,
     "completed_step_2": False,
@@ -473,11 +472,8 @@ _DEFAULTS = {
     "input_dt_hours_2_0": 0.0,
     "input_ytd_override_1_5": 0.0,
     "input_ytd_override_2_0": 0.0,
-    # PDF
     "pdf_bytes": None,
-    # Language
     "language": "es",
-    # Token
     "token_valid": None,
     "token_data": None,
     "token_consumed": False,
@@ -490,8 +486,14 @@ for _k, _v in _DEFAULTS.items():
         st.session_state[_k] = _v
 
 # ─────────────────────────────────────────────────────────────
-# LANGUAGE
+# LANGUAGE — leer ?lang= de la URL solo la primera vez
 # ─────────────────────────────────────────────────────────────
+if not st.session_state._lang_from_url_applied:
+    _url_lang = st.query_params.get("lang")
+    if _url_lang in ("en", "es"):
+        st.session_state.language = _url_lang
+    st.session_state._lang_from_url_applied = True
+
 t    = texts[st.session_state.language]
 lang = st.session_state.language
 
@@ -526,7 +528,6 @@ def fmt_date(ts_ms: int) -> str:
 
 def money_input(label, *, value=0.0, step=100.0, decimals=2, key=None, help=None,
                 lang="es", currency="$"):
-    """Number input + live formatted preview."""
     col_in, col_prev = st.columns([1.5, 3])
     with col_in:
         num = st.number_input(label, min_value=0.0, value=value, step=step,
@@ -537,7 +538,6 @@ def money_input(label, *, value=0.0, step=100.0, decimals=2, key=None, help=None
     return num
 
 def show_buy_buttons(t):
-    """Stripe purchase links rendered as buttons."""
     st.markdown(
         f"<p style='color:var(--secondary-text-color);font-size:13px;margin-top:12px;'>"
         f"{t['calc_btn_buy_more']}</p>",
@@ -648,18 +648,21 @@ if token and st.session_state.token_valid is None:
 # ─────────────────────────────────────────────────────────────
 # LOGO
 # ─────────────────────────────────────────────────────────────
-st.markdown("""
+_logo_path = os.path.join(BASE_DIR, "assets", "zaitax_logo.png")
+with open(_logo_path, "rb") as _f:
+    _logo_b64 = base64.b64encode(_f.read()).decode()
+
+st.markdown(f"""
 <div style='text-align:center;margin-bottom:24px;'>
-  <h1 style="font-size:52px;font-weight:800;letter-spacing:2px;margin-bottom:5px;">
-    <span style="color:#ff4a66;">Zai</span><span style="color:#747375;">O</span><span style="color:#0282fe;">T</span>
-  </h1>
+  <img src="data:image/png;base64,{_logo_b64}"
+       style="max-width:420px;width:80%;height:auto;" />
   <p style="color:var(--secondary-text-color);font-size:15px;">OVERTIME DEDUCTION CALCULATOR</p>
 </div>
 """, unsafe_allow_html=True)
 
 # Toasts
 if st.session_state.get("show_welcome_toast"):
-    st.toast(t["toast_welcome"], icon="🎉")
+    st.toast(t["toast_welcome"])
     st.session_state.show_welcome_toast = False
 
 _TOAST_MAP = {
@@ -1369,7 +1372,6 @@ def build_pdf(user_name, uploaded_files, num_docs, results, lang):
             return f"{float(val):.0f} h"
         return fmt_num(val) if money else str(val)
 
-    # Page 1 — Disclaimer
     pdf.add_page()
     pdf.set_fill_color(200, 30, 30); pdf.set_text_color(255, 255, 255)
     pdf.set_font("DejaVu", "B", 13)
@@ -1377,7 +1379,6 @@ def build_pdf(user_name, uploaded_files, num_docs, results, lang):
     pdf.set_text_color(0, 0, 0); pdf.ln(5)
     _body(tl["disclaimer_msg"])
 
-    # Page 2 — Report
     pdf.add_page()
     pdf.set_fill_color(30, 100, 200); pdf.set_text_color(255, 255, 255)
     pdf.set_font("DejaVu", "B", 14)
