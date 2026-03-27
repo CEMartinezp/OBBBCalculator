@@ -564,27 +564,20 @@ def show_buy_buttons(t):
 # NAVIGATION BAR — simple bottom bar (plain Streamlit buttons)
 # ─────────────────────────────────────────────────────────────
 def _do_start_over():
-    """Reset all form data and go back to Step 1. Token is never restored."""
-    for k in [
-        "eligible", "completed_step_2", "show_results", "results", "pdf_bytes",
-        "input_filing_val", "input_over40_val", "input_ot15x_val",
-        "input_ss_val", "input_itin_val", "input_total_income",
-        "input_method_index", "input_ot_1_5_total", "input_ot_2_0_total",
-        "input_regular_rate", "input_actual_rate_1_5", "input_actual_rate_2_0",
-        "input_ot_hours_1_5", "input_dt_hours_2_0",
-        "input_ytd_override_1_5", "input_ytd_override_2_0",
-    ]:
-        if k in st.session_state:
-            del st.session_state[k]
-    # Delete widget keys so radio buttons reset visually
-    for wk in ["w_filing", "w_over40", "w_ot15x", "w_ss", "w_itin",
-               "w_total_income", "w_method", "w_ot_1_5_total", "w_ot_2_0_total",
-               "w_regular_rate", "w_actual_rate_1_5", "w_actual_rate_2_0",
-               "w_ot_hours_1_5", "w_dt_hours_2_0",
-               "w_ytd_override_1_5", "w_ytd_override_2_0",
-               "calc_confirm_checkbox", "pdf_user_name_input"]:
-        if wk in st.session_state:
-            del st.session_state[wk]
+    """
+    Full reset: clear all session state except token info, then rerun.
+    Preserves only token keys and language so the user stays authenticated
+    but starts with a completely blank form — all widgets reset visually.
+    """
+    token_keys = {
+        k: st.session_state[k]
+        for k in ["token_valid", "token_data", "token_consumed",
+                  "token_uses_left", "language", "_lang_from_url_applied"]
+        if k in st.session_state
+    }
+    st.session_state.clear()
+    for k, v in token_keys.items():
+        st.session_state[k] = v
     st.session_state.active_step = 1
 
 
@@ -1068,6 +1061,11 @@ with st.expander(f"### {t['step3_title']}", expanded=step3_expanded):
                 st.session_state.input_ytd_override_2_0 = ytd_override_2_0
 
 # ─────────────────────────────────────────────────────────────
+# NAVIGATION BAR — shown after completed steps, before calculate
+# ─────────────────────────────────────────────────────────────
+show_nav_bar()
+
+# ─────────────────────────────────────────────────────────────
 # CALCULATE BUTTON
 # ─────────────────────────────────────────────────────────────
 td        = st.session_state.token_data or {}
@@ -1521,8 +1519,3 @@ if st.session_state.results:
 # ─────────────────────────────────────────────────────────────
 st.markdown("---")
 st.caption(t["footer"].format(date=datetime.now().strftime("%Y-%m-%d")))
-
-# ─────────────────────────────────────────────────────────────
-# NAVIGATION BAR — rendered at bottom of page
-# ─────────────────────────────────────────────────────────────
-show_nav_bar()
