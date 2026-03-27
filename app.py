@@ -912,13 +912,15 @@ with st.expander(f"### {t['step1_title']}", expanded=step1_expanded):
         itin_check == t["answer_options"][1]
     )
 
-    if auto_eligible and not st.session_state.eligible:
-        st.session_state.eligible    = True
-        st.session_state.active_step = 2
-        st.rerun()
-
     if eligible:
         st.info(t["eligible_blocked_info"])
+    elif auto_eligible:
+        st.success(t["eligible_blocked_info"])
+        if st.button(t["button_continue"], key=f"step1_continue_{st.session_state.form_version}",
+                     type="secondary", use_container_width=True):
+            st.session_state.eligible    = True
+            st.session_state.active_step = 2
+            st.rerun()
     elif all_answered:
         st.warning(t["unlock_message"])
 
