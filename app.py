@@ -561,28 +561,22 @@ def show_buy_buttons(t):
                                 label=t["calc_btn_buy_sub_lbl"]), unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# NAVIGATION BAR — sticky bottom bar
-# ─────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────
-# NAVIGATION BAR — sticky bottom bar
+# NAVIGATION BAR — simple bottom bar (plain Streamlit buttons)
 # ─────────────────────────────────────────────────────────────
 def _do_start_over():
     """Reset all form data and go back to Step 1. Token is never restored."""
-    keys_to_clear = [
+    for k in [
         "eligible", "completed_step_2", "show_results", "results", "pdf_bytes",
         "input_filing_val", "input_over40_val", "input_ot15x_val",
-        "input_ss_val", "input_itin_val",
-        "input_total_income", "input_method_index",
-        "input_ot_1_5_total", "input_ot_2_0_total",
+        "input_ss_val", "input_itin_val", "input_total_income",
+        "input_method_index", "input_ot_1_5_total", "input_ot_2_0_total",
         "input_regular_rate", "input_actual_rate_1_5", "input_actual_rate_2_0",
         "input_ot_hours_1_5", "input_dt_hours_2_0",
         "input_ytd_override_1_5", "input_ytd_override_2_0",
-    ]
-    for k in keys_to_clear:
+    ]:
         if k in st.session_state:
             del st.session_state[k]
-
-    # Also delete Streamlit widget keys so radio buttons reset visually
+    # Delete widget keys so radio buttons reset visually
     for wk in ["w_filing", "w_over40", "w_ot15x", "w_ss", "w_itin",
                "w_total_income", "w_method", "w_ot_1_5_total", "w_ot_2_0_total",
                "w_regular_rate", "w_actual_rate_1_5", "w_actual_rate_2_0",
@@ -591,17 +585,13 @@ def _do_start_over():
                "calc_confirm_checkbox", "pdf_user_name_input"]:
         if wk in st.session_state:
             del st.session_state[wk]
-
     st.session_state.active_step = 1
+
 
 def show_nav_bar():
     """
-    Sticky bottom navigation bar rendered via JavaScript injection.
-    Buttons are real Streamlit buttons hidden off-screen; JS clones
-    their labels into a fixed bottom bar and triggers clicks.
-    Since Streamlit doesn't support true fixed positioning for widgets,
-    we use a query-param approach: each nav button sets a ?nav= param
-    which is read on rerun to update active_step.
+    Plain Streamlit navigation bar placed at the bottom of the page.
+    No JS, no CSS tricks. Shows reached steps + Start Over button.
     """
     eligible        = st.session_state.eligible
     completed_step2 = st.session_state.completed_step_2
@@ -609,93 +599,20 @@ def show_nav_bar():
     show_s2 = eligible
     show_s3 = eligible and completed_step2
 
-    # ── Inject CSS for sticky bottom bar ─────────────────────────────────
-    st.markdown("""
-    <style>
-    /* Extra bottom padding so content isn't hidden by the bar */
-    section[data-testid="stMain"] > div { padding-bottom: 72px !important; }
-
-    #zaiot-nav-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        z-index: 99999;
-        background: var(--background-color, #fff);
-        border-top: 2px solid #2ecc71;
-        box-shadow: 0 -2px 14px rgba(0,0,0,0.18);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 20px;
-        box-sizing: border-box;
-    }
-    #zaiot-nav-bar .nav-label {
-        font-size: 11px;
-        font-weight: 700;
-        color: #6B7280;
-        white-space: nowrap;
-        margin-right: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    #zaiot-nav-bar button {
-        flex: 1;
-        padding: 7px 10px;
-        border: none;
-        border-radius: 7px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        background: #2ecc71;
-        color: white;
-        transition: background 0.18s;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    #zaiot-nav-bar button:hover { background: #27ae60; }
-    #zaiot-nav-bar button.start-over {
-        background: #e74c3c;
-        flex: 0 0 auto;
-        min-width: 130px;
-    }
-    #zaiot-nav-bar button.start-over:hover { background: #c0392b; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Build the visible button labels based on reached steps
-    step_buttons = [(t["nav_step1"], "nav=1")]
-    if show_s2:
-        step_buttons.append((t["nav_step2"], "nav=2"))
-    if show_s3:
-        step_buttons.append((t["nav_step3"], "nav=3"))
-
-    btns_html = "".join(
-        f'<button onclick="window.location.search=\'?{param}&\'+window.location.search.slice(1)">{label}</button>'
-        for label, param in step_buttons
+    st.markdown("---")
+    st.markdown(
+        f"<p style='margin-bottom:6px;font-size:13px;color:var(--secondary-text-color);'>"
+        f"<b>{t['nav_label']}</b></p>",
+        unsafe_allow_html=True,
     )
 
-    start_over_label = t["nav_start_over"]
+    num_step_btns = 1 + (1 if show_s2 else 0) + (1 if show_s3 else 0)
+    col_widths = [1] * num_step_btns + [1, 3]  # start-over + spacer
+    cols = st.columns(col_widths)
+    idx = 0
 
-    st.markdown(f"""
-    <div id="zaiot-nav-bar">
-        <span class="nav-label">{t['nav_label']}</span>
-        {btns_html}
-        <button class="start-over" onclick="window.location.search='?nav=0&'+window.location.search.slice(1)">
-            {start_over_label}
-        </button>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Handle nav query param ────────────────────────────────────────────
-    nav_param = st.query_params.get("nav")
-    if nav_param is not None:
-        # Clear the param immediately so it doesn't persist
-        st.query_params.pop("nav", None)
-        if nav_param == "0":
-            _do_start_over()
-        elif nav_param == "1":
+    with cols[idx]:
+        if st.button(t["nav_step1"], key="nav_btn_1", use_container_width=True):
             st.session_state.eligible         = False
             st.session_state.completed_step_2 = False
             st.session_state.show_results     = False
@@ -707,18 +624,35 @@ def show_nav_bar():
             st.session_state.input_ss_val     = None
             st.session_state.input_itin_val   = None
             st.session_state.active_step      = 1
-        elif nav_param == "2" and show_s2:
-            st.session_state.completed_step_2 = False
-            st.session_state.show_results     = False
-            st.session_state.results          = None
-            st.session_state.pdf_bytes        = None
-            st.session_state.active_step      = 2
-        elif nav_param == "3" and show_s3:
-            st.session_state.show_results = False
-            st.session_state.results      = None
-            st.session_state.pdf_bytes    = None
-            st.session_state.active_step  = 3
-        st.rerun()
+            st.rerun()
+    idx += 1
+
+    if show_s2:
+        with cols[idx]:
+            if st.button(t["nav_step2"], key="nav_btn_2", use_container_width=True):
+                st.session_state.completed_step_2 = False
+                st.session_state.show_results     = False
+                st.session_state.results          = None
+                st.session_state.pdf_bytes        = None
+                st.session_state.active_step      = 2
+                st.rerun()
+        idx += 1
+
+    if show_s3:
+        with cols[idx]:
+            if st.button(t["nav_step3"], key="nav_btn_3", use_container_width=True):
+                st.session_state.show_results = False
+                st.session_state.results      = None
+                st.session_state.pdf_bytes    = None
+                st.session_state.active_step  = 3
+                st.rerun()
+        idx += 1
+
+    with cols[idx]:
+        if st.button(t["nav_start_over"], key="nav_btn_start_over", use_container_width=True):
+            _do_start_over()
+            st.rerun()
+
 
 # ─────────────────────────────────────────────────────────────
 # TOKEN VALIDATION  (once per session)
@@ -884,9 +818,6 @@ def show_plan_banner():
         html      = f"<div class='{css_class}'>{tpl.format(uses=uses, date=exp_date)}</div>"
 
     st.markdown(html, unsafe_allow_html=True)
-
-# Navigation bar — process nav params before anything else renders
-show_nav_bar()
 
 show_plan_banner()
 
@@ -1590,3 +1521,8 @@ if st.session_state.results:
 # ─────────────────────────────────────────────────────────────
 st.markdown("---")
 st.caption(t["footer"].format(date=datetime.now().strftime("%Y-%m-%d")))
+
+# ─────────────────────────────────────────────────────────────
+# NAVIGATION BAR — rendered at bottom of page
+# ─────────────────────────────────────────────────────────────
+show_nav_bar()
