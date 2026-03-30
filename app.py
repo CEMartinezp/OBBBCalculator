@@ -624,6 +624,9 @@ def show_nav_bar(position="top"):
             use_container_width=True,
             disabled=(st.session_state.active_step == 1),
         ):
+            st.session_state.eligible = False
+            st.session_state.completed_step_2 = False
+            _clear_results_state()
             st.session_state.active_step = 1
             st.rerun()
     idx += 1
@@ -636,6 +639,8 @@ def show_nav_bar(position="top"):
                 use_container_width=True,
                 disabled=(st.session_state.active_step == 2),
             ):
+                st.session_state.completed_step_2 = False
+                _clear_results_state()
                 st.session_state.active_step = 2
                 st.rerun()
         idx += 1
