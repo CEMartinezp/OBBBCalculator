@@ -255,6 +255,9 @@ texts = {
         "language_options": ["Español", "English"],
         "button_continue": "Continuar",
         "error_pdf_generation": "❌ Error al generar el PDF: {}",
+        "step1_summary_prefix": "Resumen:",
+        "step2_summary_prefix": "Ingreso total:",
+        "edit_hint": "Usa la barra de navegación para volver a este paso y editarlo.",
         # Navigation
         "nav_step1": "📋 Paso 1: Elegibilidad",
         "nav_step2": "💰 Paso 2: Ingresos",
@@ -442,6 +445,9 @@ texts = {
         "language_options": ["Spanish", "English"],
         "button_continue": "Continue",
         "error_pdf_generation": "❌ Error generating PDF: {}",
+        "step1_summary_prefix": "Summary:",
+        "step2_summary_prefix": "Total income:",
+        "edit_hint": "Use the navigation bar to return to this step and edit it.",
         # Navigation
         "nav_step1": "📋 Step 1: Eligibility",
         "nav_step2": "💰 Step 2: Income",
@@ -611,38 +617,21 @@ def show_nav_bar():
 
     with cols[idx]:
         if st.button(t["nav_step1"], key="nav_btn_1", use_container_width=True):
-            st.session_state.eligible         = False
-            st.session_state.completed_step_2 = False
-            st.session_state.show_results     = False
-            st.session_state.results          = None
-            st.session_state.pdf_bytes        = None
-            st.session_state.input_filing_val = None
-            st.session_state.input_over40_val = None
-            st.session_state.input_ot15x_val  = None
-            st.session_state.input_ss_val     = None
-            st.session_state.input_itin_val   = None
-            st.session_state.active_step      = 1
+            st.session_state.active_step = 1
             st.rerun()
     idx += 1
 
     if show_s2:
         with cols[idx]:
             if st.button(t["nav_step2"], key="nav_btn_2", use_container_width=True):
-                st.session_state.completed_step_2 = False
-                st.session_state.show_results     = False
-                st.session_state.results          = None
-                st.session_state.pdf_bytes        = None
-                st.session_state.active_step      = 2
+                st.session_state.active_step = 2
                 st.rerun()
         idx += 1
 
     if show_s3:
         with cols[idx]:
             if st.button(t["nav_step3"], key="nav_btn_3", use_container_width=True):
-                st.session_state.show_results = False
-                st.session_state.results      = None
-                st.session_state.pdf_bytes    = None
-                st.session_state.active_step  = 3
+                st.session_state.active_step = 3
                 st.rerun()
         idx += 1
 
@@ -650,6 +639,19 @@ def show_nav_bar():
         if st.button(t["nav_start_over"], key="nav_btn_start_over", use_container_width=True):
             _do_start_over()
             st.rerun()
+
+
+def _step1_summary_text(t):
+    filing_status = t["filing_status_options"][st.session_state.input_filing_val] if st.session_state.input_filing_val is not None else "--"
+    over_40 = t["answer_options"][st.session_state.input_over40_val] if st.session_state.input_over40_val is not None else "--"
+    ot_1_5x = t["answer_options"][st.session_state.input_ot15x_val] if st.session_state.input_ot15x_val is not None else "--"
+    ss_check = t["answer_options"][st.session_state.input_ss_val] if st.session_state.input_ss_val is not None else "--"
+    itin_check = t["answer_options"][st.session_state.input_itin_val] if st.session_state.input_itin_val is not None else "--"
+    filing_label = "Filing status" if st.session_state.language == "en" else "Estado"
+    return (
+        f"**{t['step1_summary_prefix']}** "
+        f"{filing_label}: {filing_status} | >40h: {over_40} | 1.5x: {ot_1_5x} | SSN: {ss_check} | ITIN: {itin_check}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────
