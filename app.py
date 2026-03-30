@@ -843,7 +843,7 @@ active_step = st.session_state.active_step
 
 step1_expanded = (active_step == 1)
 
-with st.expander(f"### {t['step1_title']}", expanded=step1_expanded):
+with st.expander(f"{t['step1_title']}", expanded=step1_expanded):
     st.info(t["step1_info"])
 
     def _radio_index(saved_key, options):
@@ -949,7 +949,7 @@ if not eligible:
 
 step2_expanded = (active_step == 2)
 
-with st.expander(f"### {t['step2_title']}", expanded=step2_expanded):
+with st.expander(f"{t['step2_title']}", expanded=step2_expanded):
     st.info(t["step2_info"])
     total_income = money_input(
         t["magi_label"],
@@ -985,7 +985,7 @@ rate_1_5 = rate_2_0 = 0.0
 
 step3_expanded = (active_step == 3)
 
-with st.expander(f"### {t['step3_title']}", expanded=step3_expanded):
+with st.expander(f"{t['step3_title']}", expanded=step3_expanded):
     st.info(t["step3_info"])
     method_choice = st.radio(
         t["choose_method_label"], t["choose_method_options"],
