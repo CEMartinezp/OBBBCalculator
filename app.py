@@ -43,7 +43,9 @@ div[data-testid="stButton"] > button {
 }
 div[data-testid="stButton"] > button:hover  { background-color:#27ae60!important;transform:translateY(-1px); }
 div[data-testid="stButton"] > button:active { background-color:#219150!important; }
-div[data-testid="stButton"] > button:disabled { background-color:#2ecc71!important;opacity:0.6!important; }
+div[data-testid="stButton"] > button:disabled {
+    background-color:#95a5a6!important;opacity:0.7!important;cursor:not-allowed!important;
+}
 .plan-card-text        { color:var(--text-color)!important; }
 .plan-card-sub         { color:var(--secondary-text-color)!important; }
 .plan-card-li          { color:var(--text-color)!important;opacity:0.85; }
@@ -254,6 +256,9 @@ texts = {
         "language_options": ["Español", "English"],
         "button_continue": "Continuar",
         "error_pdf_generation": "❌ Error al generar el PDF: {}",
+        "step1_summary_prefix": "Resumen:",
+        "step2_summary_prefix": "Ingreso total:",
+        "edit_hint": "Edita y presiona *Continuar* para confirmar cambios.",
         # Navigation
         "nav_step1": "📋 Paso 1: Elegibilidad",
         "nav_step2": "💰 Paso 2: Ingresos",
@@ -440,6 +445,9 @@ texts = {
         "language_options": ["Spanish", "English"],
         "button_continue": "Continue",
         "error_pdf_generation": "❌ Error generating PDF: {}",
+        "step1_summary_prefix": "Summary:",
+        "step2_summary_prefix": "Total income:",
+        "edit_hint": "Edit and press *Continue* to confirm changes.",
         # Navigation
         "nav_step1": "📋 Step 1: Eligibility",
         "nav_step2": "💰 Step 2: Income",
@@ -563,7 +571,7 @@ def show_buy_buttons(t):
                                 label=t["calc_btn_buy_sub_lbl"]), unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# NAVIGATION BAR — simple bottom bar (plain Streamlit buttons)
+# NAVIGATION BAR
 # ─────────────────────────────────────────────────────────────
 def _do_start_over():
     """
@@ -584,68 +592,80 @@ def _do_start_over():
     st.session_state.form_version = preserved.get("form_version", 0) + 1
 
 
-def show_nav_bar():
-    """
-    Plain Streamlit navigation bar placed at the bottom of the page.
-    No JS, no CSS tricks. Shows reached steps + Start Over button.
-    """
-    eligible        = st.session_state.eligible
-    completed_step2 = st.session_state.completed_step_2
+def _step_nav_text(step_num):
+    active_step      = st.session_state.active_step
+    eligible         = st.session_state.eligible
+    completed_step_2 = st.session_state.completed_step_2
+    show_results     = st.session_state.show_results
+    base = f"Paso {step_num}" if st.session_state.language == "es" else f"Step {step_num}"
 
-    show_s2 = eligible
-    show_s3 = eligible and completed_step2
+    if step_num == active_step:
+        prefix = "▶"
+    elif step_num == 1:
+        prefix = "✅" if eligible else "🔒"
+    elif step_num == 2:
+        prefix = "✅" if completed_step_2 else "🔒"
+    else:
+        prefix = "✅" if show_results else "🔒"
 
-    st.markdown("---")
-    st.markdown(
-        f"<p style='margin-bottom:6px;font-size:13px;color:var(--secondary-text-color);'>"
-        f"<b>{t['nav_label']}</b></p>",
-        unsafe_allow_html=True,
+    return f"{prefix} {base}"
+
+
+def _step1_summary_text(t):
+    filing_status = t["filing_status_options"][st.session_state.input_filing_val] if st.session_state.input_filing_val is not None else "--"
+    over_40 = t["answer_options"][st.session_state.input_over40_val] if st.session_state.input_over40_val is not None else "--"
+    ot_1_5x = t["answer_options"][st.session_state.input_ot15x_val] if st.session_state.input_ot15x_val is not None else "--"
+    ss_check = t["answer_options"][st.session_state.input_ss_val] if st.session_state.input_ss_val is not None else "--"
+    itin_check = t["answer_options"][st.session_state.input_itin_val] if st.session_state.input_itin_val is not None else "--"
+    filing_label = "Filing status" if st.session_state.language == "en" else "Estado"
+    return (
+        f"**{t['step1_summary_prefix']}** "
+        f"{filing_label}: {filing_status} | >40h: {over_40} | 1.5x: {ot_1_5x} | SSN: {ss_check} | ITIN: {itin_check}"
     )
 
-    num_step_btns = 1 + (1 if show_s2 else 0) + (1 if show_s3 else 0)
-    col_widths = [1] * num_step_btns + [1, 3]  # start-over + spacer
-    cols = st.columns(col_widths)
-    idx = 0
 
-    with cols[idx]:
-        if st.button(t["nav_step1"], key="nav_btn_1", use_container_width=True):
-            st.session_state.eligible         = False
-            st.session_state.completed_step_2 = False
-            st.session_state.show_results     = False
-            st.session_state.results          = None
-            st.session_state.pdf_bytes        = None
-            st.session_state.input_filing_val = None
-            st.session_state.input_over40_val = None
-            st.session_state.input_ot15x_val  = None
-            st.session_state.input_ss_val     = None
-            st.session_state.input_itin_val   = None
-            st.session_state.active_step      = 1
-            st.rerun()
-    idx += 1
+def _clear_results_state():
+    st.session_state.show_results = False
+    st.session_state.results      = None
+    st.session_state.pdf_bytes    = None
 
-    if show_s2:
-        with cols[idx]:
-            if st.button(t["nav_step2"], key="nav_btn_2", use_container_width=True):
-                st.session_state.completed_step_2 = False
-                st.session_state.show_results     = False
-                st.session_state.results          = None
-                st.session_state.pdf_bytes        = None
-                st.session_state.active_step      = 2
+
+def show_nav_bar(position="top"):
+    eligible        = st.session_state.eligible
+    completed_step2 = st.session_state.completed_step_2
+    active_step     = st.session_state.active_step
+
+    visible_steps = [1]
+    if eligible:
+        visible_steps.append(2)
+    if completed_step2:
+        visible_steps.append(3)
+
+    st.markdown("---")
+    if position == "top":
+        st.markdown(
+            f"<p style='margin-bottom:6px;font-size:13px;color:var(--secondary-text-color);'>"
+            f"<b>{t['nav_label']}</b></p>",
+            unsafe_allow_html=True,
+        )
+
+    cols = st.columns([1] * (len(visible_steps) + 1))
+    col_idx = 0
+
+    for step_num in visible_steps:
+        with cols[col_idx]:
+            if st.button(
+                _step_nav_text(step_num),
+                key=f"nav_{position}_{step_num}",
+                use_container_width=True,
+                disabled=(active_step == step_num),
+            ):
+                st.session_state.active_step = step_num
                 st.rerun()
-        idx += 1
+        col_idx += 1
 
-    if show_s3:
-        with cols[idx]:
-            if st.button(t["nav_step3"], key="nav_btn_3", use_container_width=True):
-                st.session_state.show_results = False
-                st.session_state.results      = None
-                st.session_state.pdf_bytes    = None
-                st.session_state.active_step  = 3
-                st.rerun()
-        idx += 1
-
-    with cols[idx]:
-        if st.button(t["nav_start_over"], key="nav_btn_start_over", use_container_width=True):
+    with cols[col_idx]:
+        if st.button(t["nav_start_over"], key=f"nav_{position}_start_over", use_container_width=True):
             _do_start_over()
             st.rerun()
 
@@ -833,7 +853,7 @@ st.warning(t["disclaimer"])
 # ─────────────────────────────────────────────────────────────
 # NAVIGATION BAR — shown above Step 1
 # ─────────────────────────────────────────────────────────────
-show_nav_bar()
+show_nav_bar(position="top")
 
 # ─────────────────────────────────────────────────────────────
 # STEP 1 — ELIGIBILITY
@@ -842,8 +862,12 @@ eligible    = st.session_state.eligible
 active_step = st.session_state.active_step
 
 step1_expanded = (active_step == 1)
+step1_label = f"### {t['step1_title']}{' ✅' if eligible and active_step != 1 else ''}"
 
-with st.expander(f"### {t['step1_title']}", expanded=step1_expanded):
+with st.expander(step1_label, expanded=step1_expanded):
+    if eligible and active_step != 1:
+        st.success(f"{t['eligible_blocked_info']}\n\n{_step1_summary_text(t)}")
+        st.caption(t["edit_hint"])
     st.info(t["step1_info"])
 
     def _radio_index(saved_key, options):
@@ -914,6 +938,23 @@ with st.expander(f"### {t['step1_title']}", expanded=step1_expanded):
 
     if eligible:
         st.info(t["eligible_blocked_info"])
+        if active_step == 1:
+            if st.button(
+                t["button_continue"],
+                key=f"step1_reconfirm_{st.session_state.form_version}",
+                type="secondary",
+                use_container_width=True,
+            ):
+                if auto_eligible:
+                    _clear_results_state()
+                    st.session_state.active_step = 2
+                    st.rerun()
+                else:
+                    st.session_state.eligible         = False
+                    st.session_state.completed_step_2 = False
+                    _clear_results_state()
+                    st.session_state.active_step      = 1
+                    st.rerun()
     elif auto_eligible:
         st.success(t["eligible_blocked_info"])
         if st.button(t["button_continue"], key=f"step1_continue_{st.session_state.form_version}",
@@ -928,11 +969,19 @@ with st.expander(f"### {t['step1_title']}", expanded=step1_expanded):
 # STEP 2 — INCOME
 # ─────────────────────────────────────────────────────────────
 if not eligible:
+    show_nav_bar(position="bottom")
     st.stop()
 
 step2_expanded = (active_step == 2)
+step2_label = f"### {t['step2_title']}{' ✅' if st.session_state.completed_step_2 and active_step != 2 else ''}"
 
-with st.expander(f"### {t['step2_title']}", expanded=step2_expanded):
+with st.expander(step2_label, expanded=step2_expanded):
+    if st.session_state.completed_step_2 and active_step != 2:
+        st.success(
+            f"{t['step2_completed_msg']}\n\n**{t['step2_summary_prefix']}** "
+            f"{fmt_num(st.session_state.input_total_income or 0, lang)}"
+        )
+        st.caption(t["edit_hint"])
     st.info(t["step2_info"])
     total_income = money_input(
         t["magi_label"],
@@ -941,18 +990,25 @@ with st.expander(f"### {t['step2_title']}", expanded=step2_expanded):
     )
     st.session_state.input_total_income = total_income
 
-    if not st.session_state.completed_step_2:
-        if st.button(t["button_continue"], type="secondary", use_container_width=True):
-            if total_income <= 0:
-                st.error(t["error_missing_total_income"])
-            else:
-                st.session_state.completed_step_2 = True
-                st.session_state.active_step      = 3
-                st.rerun()
-    else:
+    if st.button(
+        t["button_continue"],
+        key=f"step2_continue_{st.session_state.form_version}",
+        type="secondary",
+        use_container_width=True,
+    ):
+        if total_income <= 0:
+            st.error(t["error_missing_total_income"])
+        else:
+            st.session_state.completed_step_2 = True
+            _clear_results_state()
+            st.session_state.active_step      = 3
+            st.rerun()
+
+    if st.session_state.completed_step_2:
         st.success(t["step2_completed_msg"])
 
 if not st.session_state.completed_step_2:
+    show_nav_bar(position="bottom")
     st.stop()
 
 # ─────────────────────────────────────────────────────────────
@@ -967,8 +1023,9 @@ mismatch_1_5 = mismatch_2_0 = False
 rate_1_5 = rate_2_0 = 0.0
 
 step3_expanded = (active_step == 3)
+step3_label = f"### {t['step3_title']}{' ✅' if st.session_state.show_results and active_step != 3 else ''}"
 
-with st.expander(f"### {t['step3_title']}", expanded=step3_expanded):
+with st.expander(step3_label, expanded=step3_expanded):
     st.info(t["step3_info"])
     method_choice = st.radio(
         t["choose_method_label"], t["choose_method_options"],
@@ -982,6 +1039,7 @@ with st.expander(f"### {t['step3_title']}", expanded=step3_expanded):
 
     if not method_choice:
         st.warning(t["warning_no_method_chosen"])
+        show_nav_bar(position="bottom")
         st.stop()
 
     if method_choice == t["choose_method_options"][0]:
@@ -1214,6 +1272,8 @@ else:
 # ─────────────────────────────────────────────────────────────
 # RESULTS
 # ─────────────────────────────────────────────────────────────
+show_nav_bar(position="bottom")
+
 if not st.session_state.show_results:
     st.stop()
 
