@@ -1,4 +1,4 @@
-﻿import os
+import os
 import streamlit as st
 import pandas as pd
 import requests
@@ -12,12 +12,12 @@ from io import BytesIO
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
-WORKER_BASE   = "https://obbb-tax-calculator.joncamacaro.workers.dev"
+WORKER_BASE   = "https://zaitax-ot.zaitaxot.workers.dev"
 VALIDATE_URL  = f"{WORKER_BASE}/validate-token"
 CONSUME_URL   = f"{WORKER_BASE}/consume-token"
 RESEND_URL    = f"{WORKER_BASE}/resend-token"
-STRIPE_SINGLE = "https://buy.stripe.com/test_bJe28qfoQ46d4RreBff7i00"
-STRIPE_SUB    = "https://buy.stripe.com/test_7sYcN41y0gSZbfP2Sxf7i02"
+STRIPE_SINGLE = "https://buy.stripe.com/9B68wR1jS2rffxW4b54c800"
+STRIPE_SUB    = "https://buy.stripe.com/6oUdRbbYw8PD1H69vp4c801"
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 FONT_REG  = os.path.join(BASE_DIR, "fonts", "DejaVuSans.ttf")
@@ -1106,12 +1106,12 @@ with st.expander(f"{t['step3_title']}", expanded=step3_expanded):
                 help=t["actual_rate_2_0_help"], lang=lang, key=f"w_actual_rate_2_0_{st.session_state.form_version}",
             )
             ot_hours_1_5 = money_input(
-                t["ot_hours_1_5_label"], step=1.0, decimals=0,
+                t["ot_hours_1_5_label"], step=0.1, decimals=1,
                 value=st.session_state.input_ot_hours_1_5,
                 help=t["ot_hours_1_5_help"], lang=lang, currency=" ", key=f"w_ot_hours_1_5_{st.session_state.form_version}",
             )
             dt_hours_2_0 = money_input(
-                t["dt_hours_2_0_label"], step=1.0, decimals=0,
+                t["dt_hours_2_0_label"], step=0.1, decimals=1,
                 value=st.session_state.input_dt_hours_2_0,
                 help=t["dt_hours_2_0_help"], lang=lang, currency=" ", key=f"w_dt_hours_2_0_{st.session_state.form_version}",
             )
